@@ -1,6 +1,6 @@
 # Lean Learning Theory Formalizations
 
-This repository contains two substantial Lean 4 and Mathlib formalizations in learning theory, high-dimensional geometry, and random matrix theory:
+This repository contains two substantial Lean 4 and Mathlib formalizations in learning theory:
 
 - Roman Vershynin’s [*High-Dimensional Probability*](https://www.math.uci.edu/~rvershyn/papers/HDP-book/HDP-2.pdf), second edition;
 - Joel A. Tropp’s [*An Introduction to Matrix Concentration Inequalities*](https://arxiv.org/abs/1501.01571v1).
