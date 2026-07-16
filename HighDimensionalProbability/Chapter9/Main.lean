@@ -9,6 +9,6 @@ import HighDimensionalProbability.Chapter9_DeviationsOfRandomMatricesOnSets
 /-!
 # High-Dimensional Probability, Chapter 9
 
-This is the source-ordered core aggregator for Chapter 9.  Exercise leaf
-modules and the book-level appendix are deliberately not imported here.
+This is the source-ordered core aggregator for Chapter 9. The book-level
+appendix is deliberately not imported here.
 -/

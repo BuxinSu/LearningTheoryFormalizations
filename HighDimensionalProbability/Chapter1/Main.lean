@@ -9,8 +9,7 @@ import HighDimensionalProbability.Chapter1_AnalysisAndProbabilityRefresher
 /-!
 # High-Dimensional Probability, Chapter 1
 
-Core Chapter 1 aggregator. Exercises needed by core or later chapters are
-promoted into these topic modules and identified in their docstrings; no core
-module imports `Exercise`. The `Exercise.Main` aggregator and book-level
-`Appendix` module are intentionally not imported here.
+Core Chapter 1 aggregator. Results needed by core or later chapters live in
+the topic modules and are identified in their docstrings. The book-level
+`Appendix` module is intentionally not imported here.
 -/

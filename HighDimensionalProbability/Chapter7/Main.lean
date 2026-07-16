@@ -11,7 +11,6 @@ import HighDimensionalProbability.Chapter7_RandomProcesses
 
 Source-ordered core aggregation for random processes, Gaussian comparison,
 Gaussian and spherical width, effective dimension, and random projections.
-Load-bearing exercise results live in the thematic core modules.  This module
-imports neither the leaf-only exercise aggregator nor the isolated book
-appendix.
+Supporting results live in the thematic core modules. This module does not
+import the isolated book appendix.
 -/

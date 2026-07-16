@@ -10,10 +10,9 @@ import HighDimensionalProbability.Chapter2_ConcentrationOfIndependentSums
 /-!
 # High-Dimensional Probability, Chapter 2
 
-Core Chapter 2 aggregator. Exercises needed by core or later chapters are
-promoted into these topic modules and identified in their docstrings; no core
-module imports `Exercise`. The `Exercise.Main` aggregator and book-level
-`Appendix` module are intentionally not imported here.
+Core Chapter 2 aggregator. Results needed by core or later chapters live in
+the topic modules and are identified in their docstrings. The book-level
+`Appendix` module is intentionally not imported here.
 -/
 
 /-!

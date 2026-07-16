@@ -10,7 +10,6 @@ import HighDimensionalProbability.Chapter6_QuadraticFormsSymmetrizationContracti
 # High-Dimensional Probability, Chapter 6
 
 Source-ordered core aggregation for quadratic chaos, symmetrization, random
-matrices, matrix completion, and contraction. Load-bearing exercise results
-live in the thematic core modules; this file imports neither the leaf-only
-exercise aggregator nor the isolated book appendix.
+matrices, matrix completion, and contraction. Supporting results live in the
+thematic core modules; this file does not import the isolated book appendix.
 -/

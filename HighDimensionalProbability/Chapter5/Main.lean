@@ -10,6 +10,6 @@ import HighDimensionalProbability.Chapter5_ConcentrationWithoutIndependence
 # High-Dimensional Probability, Chapter 5
 
 Source-ordered core aggregation for concentration without independence.
-Load-bearing exercise results live in the thematic core modules; this file
-does not import the leaf-only exercise aggregator or the book appendix.
+Supporting results live in the thematic core modules; this file does not
+import the book appendix.
 -/

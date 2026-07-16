@@ -9,7 +9,6 @@ import HighDimensionalProbability.Chapter8_Chaining
 /-!
 # High-Dimensional Probability, Chapter 8
 
-Source-ordered core aggregator.  Exercise leaves are compiled through
-`Chapter8.Exercise.Main`; they are intentionally absent from this core import
-graph.  The shared book-level `Appendix.lean` is likewise isolated.
+Source-ordered core aggregator. The shared book-level `Appendix.lean` is
+isolated from this core import graph.
 -/
