@@ -100,13 +100,6 @@ When a result is already available in Mathlib, the development uses or specializ
 
 This table records **566 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
 
-### Appetizer — Using Probability to Cover a Set
-
-| Book source | Result | Lean declaration | Final module |
-|---|---|---|---|
-| (0.1), convex-hull definition | A point of `conv(T)` is a finite convex combination of points of `T`. | `Finset.convexHull_eq` | `.lake/packages/mathlib/Mathlib/Analysis/Convex/Caratheodory.lean` |
-| Theorem 0.0.1 | Caratheodory: in `R^n`, at most `n+1` points suffice in a convex combination. | `convexHull_eq_union` | `.lake/packages/mathlib/Mathlib/Analysis/Convex/Caratheodory.lean` |
-
 ### Chapter 1 — A Quick Refresher on Analysis and Probability
 
 | Book source | Result | Lean declaration | Final module |
