@@ -1,0 +1,502 @@
+/-
+Book-wide Orlicz (Luxemburg) norm infrastructure.
+
+The source's Exercise 2.42 omits a nontriviality assumption on the Young
+function: for `ψ = 0` the displayed functional does not separate random
+variables.  We bundle the standard analytic hypotheses, including strict
+positivity away from zero, and state separation modulo almost-everywhere
+equality, as required for random variables.
+-/
+import Mathlib.Analysis.Convex.SpecificFunctions.Basic
+import Mathlib.Data.Real.Pointwise
+import Mathlib.MeasureTheory.Integral.Lebesgue.Basic
+import Mathlib.Probability.Notation
+
+open MeasureTheory ProbabilityTheory Real Filter
+open scoped ENNReal NNReal Topology Pointwise
+
+namespace HDP
+
+variable {Ω : Type*} {mΩ : MeasurableSpace Ω} {μ : Measure Ω}
+
+/-- A Young function in the sense needed for the Luxemburg norm.  The final
+field is the correction to the under-specified hypothesis in Exercise 2.42:
+without positivity away from zero, separation fails. -/
+structure IsOrliczYoungFunction (ψ : ℝ → ℝ) : Prop where
+  measurable : Measurable ψ
+  zero : ψ 0 = 0
+  nonneg : ∀ {t : ℝ}, 0 ≤ t → 0 ≤ ψ t
+  monotoneOn : MonotoneOn ψ (Set.Ici 0)
+  convexOn : ConvexOn ℝ (Set.Ici 0) ψ
+  positive : ∀ {t : ℝ}, 0 < t → 0 < ψ t
+
+/-- The Orlicz modular at scale `K`. Only positive scales enter the norm.
+
+**Lean implementation helper.** -/
+noncomputable def orliczModular (ψ : ℝ → ℝ) (X : Ω → ℝ)
+    (μ : Measure Ω) (K : ℝ) : ℝ≥0∞ :=
+  ∫⁻ ω, ENNReal.ofReal (ψ (|X ω| / K)) ∂μ
+
+/-- Membership in the finite Luxemburg-Orlicz class. The explicit witness
+prevents the real `sInf ∅ = 0` convention from treating an infinite-norm
+function as finite.
+
+**Lean implementation helper.** -/
+def OrliczMem (ψ : ℝ → ℝ) (X : Ω → ℝ) (μ : Measure Ω) : Prop :=
+  AEMeasurable X μ ∧
+    ∃ K : ℝ, 0 < K ∧ orliczModular ψ X μ K ≤ 1
+
+/-- The Luxemburg-Orlicz norm
+`inf {K > 0 | E ψ(|X|/K) ≤ 1}`.
+
+**Lean implementation helper.** -/
+noncomputable def orliczNorm (ψ : ℝ → ℝ) (X : Ω → ℝ)
+    (μ : Measure Ω) : ℝ :=
+  sInf {K : ℝ | 0 < K ∧ orliczModular ψ X μ K ≤ 1}
+
+/-- Almost-everywhere equal random variables have the same Orlicz modular at every scale.
+
+**Lean implementation helper.** -/
+lemma orliczModular_congr_ae (ψ : ℝ → ℝ) {X Y : Ω → ℝ}
+    (hXY : X =ᵐ[μ] Y) (K : ℝ) :
+    orliczModular ψ X μ K = orliczModular ψ Y μ K := by
+  unfold orliczModular
+  refine lintegral_congr_ae ?_
+  filter_upwards [hXY] with ω hω
+  rw [hω]
+
+/-- Almost-everywhere equal random variables have the same Orlicz norm.
+
+**Lean implementation helper.** -/
+lemma orliczNorm_congr_ae (ψ : ℝ → ℝ) {X Y : Ω → ℝ}
+    (hXY : X =ᵐ[μ] Y) : orliczNorm ψ X μ = orliczNorm ψ Y μ := by
+  unfold orliczNorm
+  congr 1
+  ext K
+  simp only [Set.mem_setOf_eq]
+  rw [orliczModular_congr_ae ψ hXY K]
+
+/-- Membership in an Orlicz class is invariant under almost-everywhere equality.
+
+**Lean implementation helper.** -/
+lemma OrliczMem.congr_ae {ψ : ℝ → ℝ} {X Y : Ω → ℝ}
+    (hX : OrliczMem ψ X μ) (hXY : X =ᵐ[μ] Y) : OrliczMem ψ Y μ := by
+  refine ⟨hX.1.congr hXY, ?_⟩
+  obtain ⟨K, hK, hmod⟩ := hX.2
+  exact ⟨K, hK, by rwa [← orliczModular_congr_ae ψ hXY K]⟩
+
+/-- Every Orlicz norm defined as an infimum over positive scales is nonnegative.
+
+**Lean implementation helper.** -/
+lemma orliczNorm_nonneg (ψ : ℝ → ℝ) (X : Ω → ℝ) (μ : Measure Ω) :
+    0 ≤ orliczNorm ψ X μ := by
+  unfold orliczNorm
+  exact Real.sInf_nonneg fun _ hK => hK.1.le
+
+/-- Any positive scale whose Orlicz modular is at most one bounds the Orlicz norm from above.
+
+**Lean implementation helper.** -/
+lemma orliczNorm_le {ψ : ℝ → ℝ} (X : Ω → ℝ) {K : ℝ}
+    (hK : 0 < K) (hmod : orliczModular ψ X μ K ≤ 1) :
+    orliczNorm ψ X μ ≤ K := by
+  unfold orliczNorm
+  exact csInf_le (bddBelow_def.mpr ⟨0, fun _ h => h.1.le⟩) ⟨hK, hmod⟩
+
+/-- Increasing a positive scale can only decrease the Orlicz modular.
+
+**Lean implementation helper.** -/
+lemma orliczModular_mono_scale {ψ : ℝ → ℝ}
+    (hψ : IsOrliczYoungFunction ψ) (X : Ω → ℝ) {K L : ℝ}
+    (hK : 0 < K) (hKL : K ≤ L) :
+    orliczModular ψ X μ L ≤ orliczModular ψ X μ K := by
+  unfold orliczModular
+  refine lintegral_mono fun ω => ENNReal.ofReal_le_ofReal ?_
+  apply hψ.monotoneOn
+  · exact div_nonneg (abs_nonneg _) (le_trans hK.le hKL)
+  · exact div_nonneg (abs_nonneg _) hK.le
+  · exact div_le_div_of_nonneg_left (abs_nonneg _) hK hKL
+
+/-- The Orlicz modular of the zero random variable is zero.
+
+**Lean implementation helper.** -/
+lemma orliczModular_zero (hψ : IsOrliczYoungFunction ψ) (K : ℝ) :
+    orliczModular ψ (fun _ : Ω => 0) μ K = 0 := by
+  simp [orliczModular, hψ.zero]
+
+/-- The Orlicz norm of the zero random variable is zero.
+
+**Lean implementation helper.** -/
+lemma orliczNorm_zero (hψ : IsOrliczYoungFunction ψ) :
+    orliczNorm ψ (fun _ : Ω => 0) μ = 0 := by
+  have hset : {K : ℝ | 0 < K ∧
+      orliczModular ψ (fun _ : Ω => 0) μ K ≤ 1} = Set.Ioi 0 := by
+    ext K
+    simp [orliczModular_zero (μ := μ) hψ K]
+  rw [orliczNorm, hset]
+  exact csInf_Ioi
+
+/-- The zero random variable belongs to every Orlicz class generated by a Young function.
+
+**Lean implementation helper.** -/
+lemma OrliczMem.zero (hψ : IsOrliczYoungFunction ψ) :
+    OrliczMem ψ (fun _ : Ω => 0) μ := by
+  refine ⟨aemeasurable_const, 1, one_pos, ?_⟩
+  rw [orliczModular_zero (μ := μ) hψ]
+  norm_num
+
+/-- Scaling a random variable and its Orlicz scale by the same absolute factor leaves the modular unchanged.
+
+**Lean implementation helper.** -/
+lemma orliczModular_const_mul (ψ : ℝ → ℝ) {X : Ω → ℝ}
+    {c : ℝ} (hc : c ≠ 0) (K : ℝ) :
+    orliczModular ψ (fun ω => c * X ω) μ (|c| * K) =
+      orliczModular ψ X μ K := by
+  unfold orliczModular
+  refine lintegral_congr fun ω => ?_
+  congr 2
+  rw [abs_mul]
+  field_simp
+
+/-- Scalar multiplication scales the Orlicz norm by the scalar's absolute value.
+
+**Lean implementation helper.** -/
+lemma orliczNorm_const_mul (hψ : IsOrliczYoungFunction ψ)
+    (X : Ω → ℝ) (c : ℝ) :
+    orliczNorm ψ (fun ω => c * X ω) μ = |c| * orliczNorm ψ X μ := by
+  rcases eq_or_ne c 0 with rfl | hc
+  · simp [orliczNorm_zero (μ := μ) hψ]
+  · have hcabs : 0 < |c| := abs_pos.mpr hc
+    have hset : {K : ℝ | 0 < K ∧
+        orliczModular ψ (fun ω => c * X ω) μ K ≤ 1} =
+        (fun K => |c| * K) ''
+          {K : ℝ | 0 < K ∧ orliczModular ψ X μ K ≤ 1} := by
+      ext K
+      simp only [Set.mem_setOf_eq, Set.mem_image]
+      constructor
+      · rintro ⟨hK, hmod⟩
+        refine ⟨K / |c|, ⟨by positivity, ?_⟩, by field_simp⟩
+        have hscale := orliczModular_const_mul (μ := μ) ψ (X := X) hc (K / |c|)
+        rw [show |c| * (K / |c|) = K from by field_simp] at hscale
+        rwa [hscale] at hmod
+      · rintro ⟨K, ⟨hK, hmod⟩, rfl⟩
+        refine ⟨by positivity, ?_⟩
+        rwa [orliczModular_const_mul ψ hc K]
+    rw [orliczNorm, hset, orliczNorm]
+    rw [show (fun K => |c| * K) ''
+        {K : ℝ | 0 < K ∧ orliczModular ψ X μ K ≤ 1} =
+        (|c| : ℝ) • {K : ℝ | 0 < K ∧ orliczModular ψ X μ K ≤ 1} by
+      rw [← Set.image_smul]
+      rfl]
+    rw [Real.sInf_smul_of_nonneg hcabs.le]
+    rfl
+
+/-- An Orlicz class is closed under scalar multiplication.
+
+**Lean implementation helper.** -/
+lemma OrliczMem.const_mul (hψ : IsOrliczYoungFunction ψ)
+    {X : Ω → ℝ} (hX : OrliczMem ψ X μ) (c : ℝ) :
+    OrliczMem ψ (fun ω => c * X ω) μ := by
+  rcases eq_or_ne c 0 with rfl | hc
+  · simpa using OrliczMem.zero (μ := μ) hψ
+  · obtain ⟨K, hK, hmod⟩ := hX.2
+    refine ⟨hX.1.const_mul c, |c| * K, mul_pos (abs_pos.mpr hc) hK, ?_⟩
+    rwa [orliczModular_const_mul ψ hc K]
+
+/-- Convexity estimate underlying the Orlicz triangle inequality.
+
+**Lean implementation helper.** -/
+lemma orliczModular_add_le (hψ : IsOrliczYoungFunction ψ)
+    {X Y : Ω → ℝ} (hXm : AEMeasurable X μ) (_hYm : AEMeasurable Y μ)
+    {K L : ℝ} (hK : 0 < K) (hL : 0 < L)
+    (hX : orliczModular ψ X μ K ≤ 1)
+    (hY : orliczModular ψ Y μ L ≤ 1) :
+    orliczModular ψ (fun ω => X ω + Y ω) μ (K + L) ≤ 1 := by
+  set w₁ : ℝ := K / (K + L) with hw₁
+  set w₂ : ℝ := L / (K + L) with hw₂
+  have hKL : (0 : ℝ) < K + L := by linarith
+  have hw₁0 : 0 ≤ w₁ := by positivity
+  have hw₂0 : 0 ≤ w₂ := by positivity
+  have hwsum : w₁ + w₂ = 1 := by
+    rw [hw₁, hw₂]
+    field_simp
+  have hptw : ∀ ω, ψ (|X ω + Y ω| / (K + L)) ≤
+      w₁ * ψ (|X ω| / K) + w₂ * ψ (|Y ω| / L) := by
+    intro ω
+    have hcomb : (|X ω| + |Y ω|) / (K + L) =
+        w₁ * (|X ω| / K) + w₂ * (|Y ω| / L) := by
+      rw [hw₁, hw₂]
+      field_simp
+    have habs : |X ω + Y ω| / (K + L) ≤
+        (|X ω| + |Y ω|) / (K + L) := by
+      gcongr
+      exact abs_add_le _ _
+    have hmono := hψ.monotoneOn
+      (div_nonneg (abs_nonneg _) hKL.le)
+      (div_nonneg (add_nonneg (abs_nonneg _) (abs_nonneg _)) hKL.le) habs
+    have hconv := hψ.convexOn.2
+      (show |X ω| / K ∈ Set.Ici (0 : ℝ) by
+        exact div_nonneg (abs_nonneg _) hK.le)
+      (show |Y ω| / L ∈ Set.Ici (0 : ℝ) by
+        exact div_nonneg (abs_nonneg _) hL.le)
+      hw₁0 hw₂0 hwsum
+    simp only [smul_eq_mul] at hconv
+    calc
+      ψ (|X ω + Y ω| / (K + L))
+          ≤ ψ ((|X ω| + |Y ω|) / (K + L)) := hmono
+      _ = ψ (w₁ * (|X ω| / K) + w₂ * (|Y ω| / L)) := by rw [hcomb]
+      _ ≤ w₁ * ψ (|X ω| / K) + w₂ * ψ (|Y ω| / L) := hconv
+  unfold orliczModular at hX hY ⊢
+  calc
+    ∫⁻ ω, ENNReal.ofReal (ψ (|X ω + Y ω| / (K + L))) ∂μ
+        ≤ ∫⁻ ω, (ENNReal.ofReal (w₁ * ψ (|X ω| / K)) +
+            ENNReal.ofReal (w₂ * ψ (|Y ω| / L))) ∂μ := by
+          refine lintegral_mono fun ω => ?_
+          rw [← ENNReal.ofReal_add (mul_nonneg hw₁0 (hψ.nonneg (by positivity)))
+            (mul_nonneg hw₂0 (hψ.nonneg (by positivity)))]
+          exact ENNReal.ofReal_le_ofReal (hptw ω)
+    _ = (∫⁻ ω, ENNReal.ofReal (w₁ * ψ (|X ω| / K)) ∂μ) +
+          ∫⁻ ω, ENNReal.ofReal (w₂ * ψ (|Y ω| / L)) ∂μ := by
+          refine lintegral_add_left' ?_ _
+          exact ((hψ.measurable.comp_aemeasurable
+            ((continuous_abs.measurable.comp_aemeasurable hXm).div_const K)).const_mul
+              w₁).ennreal_ofReal
+    _ = ENNReal.ofReal w₁ *
+          (∫⁻ ω, ENNReal.ofReal (ψ (|X ω| / K)) ∂μ) +
+        ENNReal.ofReal w₂ *
+          (∫⁻ ω, ENNReal.ofReal (ψ (|Y ω| / L)) ∂μ) := by
+          congr 1
+          · rw [← lintegral_const_mul' _ _ ENNReal.ofReal_ne_top]
+            refine lintegral_congr fun ω => ?_
+            rw [← ENNReal.ofReal_mul hw₁0]
+          · rw [← lintegral_const_mul' _ _ ENNReal.ofReal_ne_top]
+            refine lintegral_congr fun ω => ?_
+            rw [← ENNReal.ofReal_mul hw₂0]
+    _ ≤ ENNReal.ofReal w₁ * 1 + ENNReal.ofReal w₂ * 1 := by gcongr
+    _ = 1 := by
+      simp only [mul_one]
+      rw [← ENNReal.ofReal_add hw₁0 hw₂0, hwsum]
+      norm_num
+
+/-- An Orlicz class generated by a Young function is closed under addition.
+
+**Lean implementation helper.** -/
+lemma OrliczMem.add (hψ : IsOrliczYoungFunction ψ)
+    {X Y : Ω → ℝ} (hX : OrliczMem ψ X μ) (hY : OrliczMem ψ Y μ) :
+    OrliczMem ψ (fun ω => X ω + Y ω) μ := by
+  obtain ⟨K, hK, hXmod⟩ := hX.2
+  obtain ⟨L, hL, hYmod⟩ := hY.2
+  exact ⟨hX.1.add hY.1, K + L, by linarith,
+    orliczModular_add_le hψ hX.1 hY.1 hK hL hXmod hYmod⟩
+
+/-- The Orlicz norm satisfies the triangle inequality on its Orlicz class.
+
+**Lean implementation helper.** -/
+lemma orliczNorm_add_le (hψ : IsOrliczYoungFunction ψ)
+    {X Y : Ω → ℝ} (hX : OrliczMem ψ X μ) (hY : OrliczMem ψ Y μ) :
+    orliczNorm ψ (fun ω => X ω + Y ω) μ ≤
+      orliczNorm ψ X μ + orliczNorm ψ Y μ := by
+  refine le_of_forall_pos_le_add fun ε hε => ?_
+  have hsetX : {K : ℝ | 0 < K ∧ orliczModular ψ X μ K ≤ 1}.Nonempty := by
+    obtain ⟨K, hK, hmod⟩ := hX.2
+    exact ⟨K, hK, hmod⟩
+  have hsetY : {K : ℝ | 0 < K ∧ orliczModular ψ Y μ K ≤ 1}.Nonempty := by
+    obtain ⟨K, hK, hmod⟩ := hY.2
+    exact ⟨K, hK, hmod⟩
+  obtain ⟨K, hK, hKlt⟩ := exists_lt_of_csInf_lt hsetX
+    (show orliczNorm ψ X μ < orliczNorm ψ X μ + ε / 2 by
+      unfold orliczNorm
+      linarith)
+  obtain ⟨L, hL, hLlt⟩ := exists_lt_of_csInf_lt hsetY
+    (show orliczNorm ψ Y μ < orliczNorm ψ Y μ + ε / 2 by
+      unfold orliczNorm
+      linarith)
+  change 0 < K ∧ orliczModular ψ X μ K ≤ 1 at hK
+  change 0 < L ∧ orliczModular ψ Y μ L ≤ 1 at hL
+  have hadd := orliczModular_add_le hψ hX.1 hY.1 hK.1 hL.1 hK.2 hL.2
+  have hnorm := orliczNorm_le (μ := μ) (fun ω => X ω + Y ω)
+    (by linarith : 0 < K + L) hadd
+  linarith
+
+/-! ## Separation modulo almost-everywhere equality -/
+
+/-- A positive convex Young function controls the identity by an affine
+function of `ψ`. This is the elementary estimate used to turn a modular
+bound into an `L¹` bound.
+
+**Lean implementation helper.** -/
+lemma le_one_add_div_orlicz_one (hψ : IsOrliczYoungFunction ψ)
+    {t : ℝ} (ht : 0 ≤ t) : t ≤ 1 + ψ t / ψ 1 := by
+  have hψ1 : 0 < ψ 1 := hψ.positive one_pos
+  by_cases ht1 : t ≤ 1
+  · exact ht1.trans (le_add_of_nonneg_right (div_nonneg (hψ.nonneg ht) hψ1.le))
+  · have htpos : 0 < t := lt_of_lt_of_le one_pos (le_of_not_ge ht1)
+    set a : ℝ := 1 - 1 / t with ha
+    set b : ℝ := 1 / t with hb
+    have ha0 : 0 ≤ a := by
+      rw [ha, hb]
+      exact sub_nonneg.mpr (by simpa only [one_div_one] using
+        one_div_le_one_div_of_le one_pos (le_of_not_ge ht1))
+    have hb0 : 0 ≤ b := by positivity
+    have hab : a + b = 1 := by rw [ha, hb]; ring
+    have hconv := hψ.convexOn.2
+      (show (0 : ℝ) ∈ Set.Ici 0 by simp)
+      (show t ∈ Set.Ici 0 by exact ht)
+      ha0 hb0 hab
+    simp only [smul_eq_mul, hψ.zero, mul_zero, zero_add, hb] at hconv
+    have hone : 1 / t * t = 1 := by field_simp
+    rw [hone, one_div_mul_eq_div] at hconv
+    have hlinear : ψ 1 * t ≤ ψ t := by
+      exact (le_div_iff₀ htpos).mp hconv
+    have hratio : t ≤ ψ t / ψ 1 := by
+      exact (le_div_iff₀ hψ1).mpr (by simpa [mul_comm] using hlinear)
+    exact hratio.trans (le_add_of_nonneg_left zero_le_one)
+
+/-- A modular bound at scale `K` gives a quantitative first-moment bound.
+This proof uses only convexity, positivity at `1`, and the probability
+normalization.
+
+**Lean implementation helper.** -/
+lemma lintegral_abs_le_of_orliczModular_le_one [IsProbabilityMeasure μ]
+    (hψ : IsOrliczYoungFunction ψ) {X : Ω → ℝ}
+    (_hXm : AEMeasurable X μ) {K : ℝ} (hK : 0 < K)
+    (hmod : orliczModular ψ X μ K ≤ 1) :
+    (∫⁻ ω, ENNReal.ofReal |X ω| ∂μ) ≤
+      ENNReal.ofReal (K * (1 + 1 / ψ 1)) := by
+  have hψ1 : 0 < ψ 1 := hψ.positive one_pos
+  have hcoef : 0 ≤ K / ψ 1 := by positivity
+  have hptw : ∀ ω, |X ω| ≤
+      K + (K / ψ 1) * ψ (|X ω| / K) := by
+    intro ω
+    have hu := le_one_add_div_orlicz_one hψ
+      (div_nonneg (abs_nonneg (X ω)) hK.le)
+    calc
+      |X ω| = K * (|X ω| / K) := by field_simp
+      _ ≤ K * (1 + ψ (|X ω| / K) / ψ 1) :=
+        mul_le_mul_of_nonneg_left hu hK.le
+      _ = K + (K / ψ 1) * ψ (|X ω| / K) := by ring
+  unfold orliczModular at hmod
+  calc
+    (∫⁻ ω, ENNReal.ofReal |X ω| ∂μ)
+        ≤ ∫⁻ ω, (ENNReal.ofReal K +
+            ENNReal.ofReal (K / ψ 1) *
+              ENNReal.ofReal (ψ (|X ω| / K))) ∂μ := by
+          refine lintegral_mono fun ω => ?_
+          rw [← ENNReal.ofReal_mul hcoef,
+            ← ENNReal.ofReal_add hK.le
+              (mul_nonneg hcoef (hψ.nonneg (by positivity)))]
+          exact ENNReal.ofReal_le_ofReal (hptw ω)
+    _ = (∫⁻ _ : Ω, ENNReal.ofReal K ∂μ) +
+          ∫⁻ ω, ENNReal.ofReal (K / ψ 1) *
+            ENNReal.ofReal (ψ (|X ω| / K)) ∂μ := by
+          refine lintegral_add_left' aemeasurable_const _
+    _ = ENNReal.ofReal K + ENNReal.ofReal (K / ψ 1) *
+          (∫⁻ ω, ENNReal.ofReal (ψ (|X ω| / K)) ∂μ) := by
+          congr 1
+          · simp
+          · rw [lintegral_const_mul' _ _ ENNReal.ofReal_ne_top]
+    _ ≤ ENNReal.ofReal K + ENNReal.ofReal (K / ψ 1) * 1 := by gcongr
+    _ = ENNReal.ofReal (K * (1 + 1 / ψ 1)) := by
+          rw [mul_one, ← ENNReal.ofReal_add hK.le hcoef]
+          congr 1
+          ring
+
+/-- The Luxemburg functional separates random variables only modulo
+almost-everywhere equality. Chapter 2's ψ₁/ψ₂ norm laws depend on this result.
+
+**Book Exercise 2.42(a).** -/
+theorem orliczNorm_eq_zero_iff [IsProbabilityMeasure μ]
+    (hψ : IsOrliczYoungFunction ψ) {X : Ω → ℝ}
+    (hX : OrliczMem ψ X μ) :
+    orliczNorm ψ X μ = 0 ↔ X =ᵐ[μ] 0 := by
+  constructor
+  · intro hnorm
+    have hset : {K : ℝ | 0 < K ∧ orliczModular ψ X μ K ≤ 1}.Nonempty := by
+      obtain ⟨K, hK, hmod⟩ := hX.2
+      exact ⟨K, hK, hmod⟩
+    let C : ℝ := 1 + 1 / ψ 1
+    have hC : 0 < C := by
+      dsimp [C]
+      have := hψ.positive (t := (1 : ℝ)) one_pos
+      positivity
+    have hbound : ∀ n : ℕ,
+        (∫⁻ ω, ENNReal.ofReal |X ω| ∂μ) ≤
+          ENNReal.ofReal (C / ((n : ℝ) + 1)) := by
+      intro n
+      have htarget : orliczNorm ψ X μ < 1 / ((n : ℝ) + 1) := by
+        rw [hnorm]
+        positivity
+      unfold orliczNorm at htarget
+      obtain ⟨K, hK, hKlt⟩ := exists_lt_of_csInf_lt hset htarget
+      change 0 < K ∧ orliczModular ψ X μ K ≤ 1 at hK
+      have hfirst := lintegral_abs_le_of_orliczModular_le_one
+        hψ hX.1 hK.1 hK.2
+      calc
+        (∫⁻ ω, ENNReal.ofReal |X ω| ∂μ)
+            ≤ ENNReal.ofReal (K * C) := by simpa [C, mul_comm] using hfirst
+        _ ≤ ENNReal.ofReal (C / ((n : ℝ) + 1)) := by
+          apply ENNReal.ofReal_le_ofReal
+          rw [div_eq_mul_inv]
+          simpa [mul_comm] using mul_le_mul_of_nonneg_right hKlt.le hC.le
+    have htendReal : Tendsto (fun n : ℕ => C / ((n : ℝ) + 1))
+        atTop (𝓝 0) := by
+      have hconst : Tendsto (fun _ : ℕ => C) atTop (𝓝 C) := tendsto_const_nhds
+      simpa [div_eq_mul_inv] using
+        hconst.mul tendsto_one_div_add_atTop_nhds_zero_nat
+    have htend : Tendsto
+        (fun n : ℕ => ENNReal.ofReal (C / ((n : ℝ) + 1)))
+        atTop (𝓝 0) := by
+      change Tendsto (ENNReal.ofReal ∘ fun n : ℕ => C / ((n : ℝ) + 1))
+        atTop (𝓝 0)
+      simpa only [ENNReal.ofReal_zero] using
+        (ENNReal.continuous_ofReal.tendsto 0).comp htendReal
+    have hzero : (∫⁻ ω, ENNReal.ofReal |X ω| ∂μ) = 0 := by
+      apply le_antisymm
+      · exact ge_of_tendsto htend (Eventually.of_forall hbound)
+      · exact bot_le
+    have hae : (fun ω => ENNReal.ofReal |X ω|) =ᵐ[μ] 0 :=
+      (lintegral_eq_zero_iff'
+        ((continuous_abs.measurable.comp_aemeasurable hX.1).ennreal_ofReal)).mp hzero
+    filter_upwards [hae] with ω hω
+    simpa using hω
+  · intro hzero
+    rw [orliczNorm_congr_ae ψ hzero]
+    exact orliczNorm_zero (μ := μ) hψ
+
+/-- The complete corrected norm-law interface for the finite Orlicz class.
+It is deliberately phrased on raw random variables with an explicit a.e.
+congruence law; downstream developments may quotient by a.e. equality if a
+bundled normed space is desired. -/
+structure OrliczNormLaws (ψ : ℝ → ℝ) (μ : Measure Ω) : Prop where
+  ae_invariant : ∀ {X Y : Ω → ℝ}, X =ᵐ[μ] Y →
+    orliczNorm ψ X μ = orliczNorm ψ Y μ
+  zero_mem : OrliczMem ψ (fun _ : Ω => 0) μ
+  nonneg : ∀ X : Ω → ℝ, 0 ≤ orliczNorm ψ X μ
+  separates_ae : ∀ {X : Ω → ℝ}, OrliczMem ψ X μ →
+    (orliczNorm ψ X μ = 0 ↔ X =ᵐ[μ] 0)
+  const_mul_mem : ∀ {X : Ω → ℝ}, OrliczMem ψ X μ → ∀ c : ℝ,
+    OrliczMem ψ (fun ω => c * X ω) μ
+  const_mul : ∀ (X : Ω → ℝ) (c : ℝ),
+    orliczNorm ψ (fun ω => c * X ω) μ = |c| * orliczNorm ψ X μ
+  add_mem : ∀ {X Y : Ω → ℝ}, OrliczMem ψ X μ → OrliczMem ψ Y μ →
+    OrliczMem ψ (fun ω => X ω + Y ω) μ
+  add_le : ∀ {X Y : Ω → ℝ}, OrliczMem ψ X μ → OrliczMem ψ Y μ →
+    orliczNorm ψ (fun ω => X ω + Y ω) μ ≤
+      orliczNorm ψ X μ + orliczNorm ψ Y μ
+
+/-- A measurable convex nondecreasing
+Young function which is strictly positive away from zero defines a norm on its
+finite Luxemburg class, modulo a.e. equality.
+
+**Book Exercise 2.42(a).** -/
+theorem isOrliczNorm [IsProbabilityMeasure μ]
+    (hψ : IsOrliczYoungFunction ψ) : OrliczNormLaws ψ μ where
+  ae_invariant := orliczNorm_congr_ae ψ
+  zero_mem := OrliczMem.zero hψ
+  nonneg := fun X => orliczNorm_nonneg ψ X μ
+  separates_ae := orliczNorm_eq_zero_iff hψ
+  const_mul_mem := OrliczMem.const_mul hψ
+  const_mul := orliczNorm_const_mul hψ
+  add_mem := OrliczMem.add hψ
+  add_le := orliczNorm_add_le hψ
+
+end HDP
