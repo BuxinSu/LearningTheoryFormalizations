@@ -1,0 +1,116 @@
+% Required packages:
+% \usepackage{booktabs}
+% \usepackage{tabularx}
+% \usepackage{array}
+%
+% The tables below are copy-paste-ready LaTeX fragments.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Module layout of the HighDimensionalProbability formalization.}
+\label{tab:hdp-module-layout}
+\begin{tabularx}{\textwidth}{
+  @{}>{\raggedright\arraybackslash}p{0.13\textwidth}
+  >{\raggedright\arraybackslash}p{0.38\textwidth}
+  >{\raggedright\arraybackslash}X@{}}
+\toprule
+Area & Final module & Main topics \\
+\midrule
+Shared foundations &
+\texttt{HighDimensionalProbability/Prelude/} &
+Probability, Orlicz norms, random vectors and matrices, Gaussian matrices, metric entropy, random graphs, and matrix concentration. \\
+
+Chapter 1 &
+\texttt{Chapter1\_AnalysisAndProbabilityRefresher.lean} &
+Convexity, norms, probability, expectation, concentration basics, and classical limit laws. \\
+
+Chapter 2 &
+\texttt{Chapter2\_ConcentrationOfIndependentSums.lean} &
+Gaussian tails, subgaussian and subexponential variables, Hoeffding and Bernstein inequalities. \\
+
+Chapter 3 &
+\texttt{Chapter3\_RandomVectorsInHighDimensions.lean} &
+Concentration of random vectors, isotropy, covariance estimation, and high-dimensional geometry. \\
+
+Chapter 4 &
+\texttt{Chapter4\_RandomMatrices.lean} &
+Singular values, random matrix norms, covariance matrices, and matrix concentration. \\
+
+Chapter 5 &
+\texttt{Chapter5\_ConcentrationWithoutIndependence.lean} &
+Concentration on product spaces, the sphere, and other dependent settings. \\
+
+Chapter 6 &
+\texttt{Chapter6\_QuadraticFormsSymmetrizationContraction.lean} &
+Quadratic forms, decoupling, symmetrization, contraction, and comparison principles. \\
+
+Chapter 7 &
+\texttt{Chapter7\_RandomProcesses.lean} &
+Subgaussian processes, Gaussian complexity, widths, and comparison inequalities. \\
+
+Chapter 8 &
+\texttt{Chapter8\_Chaining.lean} &
+Dudley bounds, generic chaining, entropy integrals, and majorizing-measure methods. \\
+
+Chapter 9 &
+\texttt{Chapter9\_DeviationsOfRandomMatricesOnSets.lean} &
+Matrix deviation, Johnson--Lindenstrauss embeddings, covariance estimation, recovery, and restricted isometries. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Module layout of the MatrixConcentration formalization.}
+\label{tab:matrix-concentration-module-layout}
+\begin{tabularx}{\textwidth}{
+  @{}>{\raggedright\arraybackslash}p{0.13\textwidth}
+  >{\raggedright\arraybackslash}p{0.38\textwidth}
+  >{\raggedright\arraybackslash}X@{}}
+\toprule
+Area & Final module & Main topics \\
+\midrule
+Shared foundations &
+\texttt{MatrixConcentration/Prelude.lean} &
+Matrix norms, Hermitian order, eigenvalues, singular values, matrix functions, measurability, expectation, and shared probability infrastructure. \\
+
+Chapter 1 &
+\texttt{Chapter1\_Introduction.lean} &
+Covariance estimation, sample covariance matrices, and introductory scalar and matrix Bernstein inequalities. \\
+
+Chapter 2 &
+\texttt{Chapter2\_MatrixFunctionsAndProbabilityWithMatrices.lean} &
+Matrix analysis, spectral calculus, Hermitian dilation, matrix expectation, variance, and variance statistics. \\
+
+Chapter 3 &
+\texttt{Chapter3\_MatrixLaplaceTransformMethod.lean} &
+Matrix moment-generating functions, cumulant bounds, the matrix Laplace-transform method, and master tail and expectation inequalities. \\
+
+Chapter 4 &
+\texttt{Chapter4\_MatrixGaussianAndRademacherSeries.lean} &
+Gaussian and Rademacher matrix series, noncommutative Khintchine bounds, rectangular series, and Gaussian concentration. \\
+
+Chapter 5 &
+\texttt{Chapter5\_SumOfPSDMatrices.lean} &
+Matrix Chernoff inequalities, sums of positive-semidefinite matrices, randomized matrix approximation, and graph applications. \\
+
+Chapter 6 &
+\texttt{Chapter6\_SumOfBoundedRandomMatrices.lean} &
+Matrix Bernstein inequalities, bounded random matrices, rectangular dilation arguments, and Rosenthal--Pinelis estimates. \\
+
+Chapter 7 &
+\texttt{Chapter7\_IntrinsicDimension.lean} &
+Intrinsic dimension, refined matrix concentration inequalities, covariance estimation, and low-rank approximation. \\
+
+Chapter 8 &
+\texttt{Chapter8\_ProofOfLiebsTheorem.lean} &
+Matrix concavity, Schur complements, tensor-product arguments, and the proof of Lieb's theorem. \\
+
+Cited-proof Appendix &
+\texttt{Appendix\_GoldenThompson.lean}; \texttt{Appendix\_GaussianConcentration.lean}; \texttt{Appendix\_MatrixRosenthal.lean}; \texttt{Appendix\_SymmetricLowerBound.lean}; \texttt{Appendix\_RosenthalPinelis.lean} &
+Complete formal proofs of external results cited by the monograph, including Golden--Thompson, Gaussian concentration, matrix Rosenthal, symmetric-sum lower bounds, and Rosenthal--Pinelis inequalities. \\
+\bottomrule
+\end{tabularx}
+\end{table}

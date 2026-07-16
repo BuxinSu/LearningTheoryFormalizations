@@ -45,18 +45,18 @@ To check one module directly:
 
 ## Module layout
 
-| Area | Final modules |
-|---|---|
-| Shared foundations | `MatrixConcentration/Prelude.lean` |
-| Chapter 1 | `Chapter1_Introduction.lean` |
-| Chapter 2 | `Chapter2_MatrixFunctionsAndProbabilityWithMatrices.lean` |
-| Chapter 3 | `Chapter3_MatrixLaplaceTransformMethod.lean` |
-| Chapter 4 | `Chapter4_MatrixGaussianAndRademacherSeries.lean` |
-| Chapter 5 | `Chapter5_SumOfPSDMatrices.lean` |
-| Chapter 6 | `Chapter6_SumOfBoundedRandomMatrices.lean` |
-| Chapter 7 | `Chapter7_IntrinsicDimension.lean` |
-| Chapter 8 | `Chapter8_ProofOfLiebsTheorem.lean` |
-| Cited-proof Appendix | `Appendix_GoldenThompson.lean`, `Appendix_GaussianConcentration.lean`, `Appendix_MatrixRosenthal.lean`, `Appendix_SymmetricLowerBound.lean`, `Appendix_RosenthalPinelis.lean` |
+| Area | Final module | Main topics |
+|---|---|---|
+| Shared foundations | [`Prelude.lean`](Prelude.lean) | Matrix norms, Hermitian order, eigenvalues, singular values, matrix functions, measurability, expectation, and shared probability infrastructure |
+| Chapter 1 | [`Chapter1_Introduction.lean`](Chapter1_Introduction.lean) | Covariance estimation, sample covariance matrices, and introductory scalar and matrix Bernstein inequalities |
+| Chapter 2 | [`Chapter2_MatrixFunctionsAndProbabilityWithMatrices.lean`](Chapter2_MatrixFunctionsAndProbabilityWithMatrices.lean) | Matrix analysis, spectral calculus, Hermitian dilation, matrix expectation, variance, and variance statistics |
+| Chapter 3 | [`Chapter3_MatrixLaplaceTransformMethod.lean`](Chapter3_MatrixLaplaceTransformMethod.lean) | Matrix moment-generating functions, cumulant bounds, the matrix Laplace-transform method, and master tail and expectation inequalities |
+| Chapter 4 | [`Chapter4_MatrixGaussianAndRademacherSeries.lean`](Chapter4_MatrixGaussianAndRademacherSeries.lean) | Gaussian and Rademacher matrix series, noncommutative Khintchine bounds, rectangular series, and Gaussian concentration |
+| Chapter 5 | [`Chapter5_SumOfPSDMatrices.lean`](Chapter5_SumOfPSDMatrices.lean) | Matrix Chernoff inequalities, sums of positive-semidefinite matrices, randomized matrix approximation, and graph applications |
+| Chapter 6 | [`Chapter6_SumOfBoundedRandomMatrices.lean`](Chapter6_SumOfBoundedRandomMatrices.lean) | Matrix Bernstein inequalities, bounded random matrices, rectangular dilation arguments, and Rosenthal--Pinelis estimates |
+| Chapter 7 | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | Intrinsic dimension, refined matrix concentration inequalities, covariance estimation, and low-rank approximation |
+| Chapter 8 | [`Chapter8_ProofOfLiebsTheorem.lean`](Chapter8_ProofOfLiebsTheorem.lean) | Matrix concavity, Schur complements, tensor-product arguments, and the proof of Lieb's theorem |
+| Cited-proof Appendix | [`Appendix_GoldenThompson.lean`](Appendix_GoldenThompson.lean), [`Appendix_GaussianConcentration.lean`](Appendix_GaussianConcentration.lean), [`Appendix_MatrixRosenthal.lean`](Appendix_MatrixRosenthal.lean), [`Appendix_SymmetricLowerBound.lean`](Appendix_SymmetricLowerBound.lean), [`Appendix_RosenthalPinelis.lean`](Appendix_RosenthalPinelis.lean) | Complete formal proofs of external results cited by the monograph, including Golden--Thompson, Gaussian concentration, matrix Rosenthal, symmetric-sum lower bounds, and Rosenthal--Pinelis inequalities |
 
 ## Correspondence legend
 
