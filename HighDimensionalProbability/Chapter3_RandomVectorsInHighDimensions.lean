@@ -5460,6 +5460,118 @@ theorem sphere_isIsotropic (n : ℕ) (hn : 0 < n) :
   · rw [if_neg hij]
     exact isotropicSphere_cross_secondMoment i j hij
 
+/-- Two independent uniform directions on the unit sphere have exact squared
+inner-product mean `1/n`.
+
+**Book Equation (3.14), moment identity preceding the display.** -/
+theorem uniformSphere_inner_sq_expectation (n : ℕ) (hn : 0 < n) :
+    (∫ z : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 ×
+        Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1,
+      inner ℝ (HDP.uniformSphereVector _ z.1)
+        (HDP.uniformSphereVector _ z.2) ^ 2
+      ∂(HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))).prod
+        (HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n)))) =
+      1 / (n : ℝ) := by
+  let sigma := HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))
+  let X := HDP.isotropicSphereVector n
+  have hcoord (i j : Fin n) :
+      Integrable (fun x => X x i * X x j) sigma := by
+    refine Integrable.of_bound (by fun_prop) (n : ℝ) ?_
+    filter_upwards with x
+    rw [Real.norm_eq_abs, abs_mul]
+    have hi : |X x i| ≤ Real.sqrt n := by
+      calc
+        |X x i| ≤ ‖X x‖ := PiLp.norm_apply_le _ _
+        _ = Real.sqrt n := HDP.norm_isotropicSphereVector n x
+    have hj : |X x j| ≤ Real.sqrt n := by
+      calc
+        |X x j| ≤ ‖X x‖ := PiLp.norm_apply_le _ _
+        _ = Real.sqrt n := HDP.norm_isotropicSphereVector n x
+    calc
+      |X x i| * |X x j| ≤ Real.sqrt n * Real.sqrt n :=
+        mul_le_mul hi hj (abs_nonneg _) (Real.sqrt_nonneg _)
+      _ = (n : ℝ) := by rw [← pow_two, Real.sq_sqrt]; positivity
+  have hscaled := secondMoment_independent_copy_inner_sq
+    (μ := sigma) X hcoord
+  have hmatrix : HDP.secondMomentMatrix X sigma = 1 := by
+    ext i j
+    exact HDP.isIsotropic_iff.mp (sphere_isIsotropic n hn) i j
+  rw [hmatrix] at hscaled
+  have hscaled' :
+      (∫ z : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 ×
+          Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1,
+        inner ℝ (X z.1) (X z.2) ^ 2 ∂sigma.prod sigma) = (n : ℝ) := by
+    simpa [Matrix.one_apply] using hscaled
+  have hnR : 0 < (n : ℝ) := by exact_mod_cast hn
+  have hpoint (z : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 ×
+      Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1) :
+      inner ℝ (X z.1) (X z.2) ^ 2 =
+        (n : ℝ) ^ 2 *
+          inner ℝ (HDP.uniformSphereVector _ z.1)
+            (HDP.uniformSphereVector _ z.2) ^ 2 := by
+    simp only [X, HDP.isotropicSphereVector, HDP.uniformSphereVector,
+      inner_smul_left, inner_smul_right]
+    rw [Real.sq_sqrt hnR.le]
+    ring
+  rw [integral_congr_ae (ae_of_all _ hpoint), integral_const_mul] at hscaled'
+  change (∫ z, inner ℝ (HDP.uniformSphereVector _ z.1)
+      (HDP.uniformSphereVector _ z.2) ^ 2 ∂sigma.prod sigma) = _
+  apply (mul_left_cancel₀ (pow_ne_zero 2 hnR.ne')).mp
+  rw [hscaled']
+  field_simp
+
+/-- Quantitative high-probability form of almost orthogonality: for every
+`C>0`, two independent uniform unit directions satisfy
+`|⟨X,Y⟩| < C/√n` outside a set of probability at most `1/C²`.
+
+**Book Equation (3.14).** -/
+theorem uniformSphere_almost_orthogonal (n : ℕ) (hn : 0 < n)
+    {C : ℝ} (hC : 0 < C) :
+    let sigma := HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))
+    (sigma.prod sigma).real
+      {z | C / Real.sqrt n ≤
+        |inner ℝ (HDP.uniformSphereVector _ z.1)
+          (HDP.uniformSphereVector _ z.2)|} ≤ 1 / C ^ 2 := by
+  dsimp only
+  let sigma := HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))
+  let f : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 ×
+      Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 → ℝ :=
+    fun z => inner ℝ (HDP.uniformSphereVector _ z.1)
+      (HDP.uniformSphereVector _ z.2) ^ 2
+  have hfint : Integrable f (sigma.prod sigma) := by
+    refine Integrable.of_bound (by fun_prop) 1 ?_
+    filter_upwards with z
+    rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
+    have hinner : |inner ℝ (z.1 : EuclideanSpace ℝ (Fin n)) z.2| ≤ 1 := by
+      calc
+        _ ≤ ‖(z.1 : EuclideanSpace ℝ (Fin n))‖ *
+            ‖(z.2 : EuclideanSpace ℝ (Fin n))‖ := abs_real_inner_le_norm _ _
+        _ = 1 := by simp
+    nlinarith [sq_nonneg
+      (inner ℝ (z.1 : EuclideanSpace ℝ (Fin n)) z.2)]
+  have hnR : 0 < (n : ℝ) := by exact_mod_cast hn
+  have hsqrtn : 0 < Real.sqrt n := Real.sqrt_pos.2 hnR
+  have ht : 0 < (C / Real.sqrt n) ^ 2 := sq_pos_of_pos (div_pos hC hsqrtn)
+  have hmarkov := HDP.Chapter1.markov_inequality
+    (μ := sigma.prod sigma) (X := f)
+    (Filter.Eventually.of_forall fun _ => sq_nonneg _) hfint ht
+  have hset : {z | C / Real.sqrt n ≤
+      |inner ℝ (HDP.uniformSphereVector _ z.1)
+        (HDP.uniformSphereVector _ z.2)|} =
+      {z | (C / Real.sqrt n) ^ 2 ≤ f z} := by
+    ext z
+    simp only [Set.mem_setOf_eq, f]
+    exact (sq_le_sq₀ (div_nonneg hC.le hsqrtn.le) (abs_nonneg _)).symm
+  rw [hset]
+  calc
+    (sigma.prod sigma).real {z | (C / Real.sqrt n) ^ 2 ≤ f z} ≤
+        (∫ z, f z ∂sigma.prod sigma) / (C / Real.sqrt n) ^ 2 := hmarkov
+    _ = (1 / (n : ℝ)) / (C / Real.sqrt n) ^ 2 := by
+      rw [uniformSphere_inner_sq_expectation n hn]
+    _ = 1 / C ^ 2 := by
+      rw [div_pow, Real.sq_sqrt hnR.le]
+      field_simp
+
 /-- Identifies `projectiveDenominator` with `norm_div_sqrt`.
 
 **Lean implementation helper.** -/
