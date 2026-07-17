@@ -23,6 +23,7 @@ import Mathlib.MeasureTheory.Measure.Haar.Basic
 import Mathlib.MeasureTheory.Measure.Haar.Unique
 import Mathlib.Topology.Algebra.Star.Unitary
 import Mathlib.Probability.CDF
+import Mathlib.Analysis.Normed.Algebra.MatrixExponential
 import Mathlib.MeasureTheory.Constructions.UnitInterval
 import HighDimensionalProbability.Chapter4_RandomMatrices
 import Mathlib.MeasureTheory.Measure.Prod
@@ -48,6 +49,8 @@ import Mathlib.Analysis.InnerProductSpace.JointEigenspace
 - §5.4 Matrix Bernstein inequality — matrix Bernstein (Theorem 5.4.1),
   spectral functional calculus and Loewner order (Definitions 5.4.2--5.4.3),
   the noncommutative failure of scalar monotonicity (Remark 5.4.6),
+  the failure of the scalar exponential addition law without commutation
+  (Section 5.4.2; Exercise 5.19),
   Golden--Thompson and Lieb (Theorems 5.4.7--5.4.8), and matrix
   Hoeffding/Khintchine (Theorems 5.4.13--5.4.14)
 - §5.5 Community detection in sparse networks — spectral recovery
@@ -6572,6 +6575,135 @@ theorem matrixExponential_add_of_commute {A B : Matrix n n ℝ}
         NormedSpace.exp (HDP.complexifyMatrix B) := by
   rw [HDP.complexifyMatrix_add]
   exact MatrixConcentration.matrix_exp_add_of_commute hcomm
+
+/-- The diagonal symmetric matrix in the explicit noncommuting-exponential
+counterexample. -/
+def matrixExponentialCounterexampleX : Matrix (Fin 2) (Fin 2) ℝ :=
+  !![1, 0; 0, 0]
+
+/-- The symmetric coordinate-swap matrix in the explicit
+noncommuting-exponential counterexample. -/
+def matrixExponentialCounterexampleY : Matrix (Fin 2) (Fin 2) ℝ :=
+  !![0, 1; 1, 0]
+
+private noncomputable def matrixExponentialHadamardUnit :
+    (Matrix (Fin 2) (Fin 2) ℂ)ˣ where
+  val := !![1, 1; 1, -1]
+  inv := (1 / 2 : ℂ) • !![1, 1; 1, -1]
+  val_inv := by
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      norm_num [Matrix.mul_apply, Fin.sum_univ_two]
+  inv_val := by
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      norm_num [Matrix.mul_apply, Fin.sum_univ_two]
+
+private theorem matrixExponentialCounterexampleX_formula :
+    NormedSpace.exp
+        (HDP.complexifyMatrix matrixExponentialCounterexampleX) =
+      !![Complex.exp 1, 0; 0, 1] := by
+  have hdiag :
+      HDP.complexifyMatrix matrixExponentialCounterexampleX =
+        diagonal ![(1 : ℂ), 0] := by
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      norm_num [matrixExponentialCounterexampleX,
+        HDP.complexifyMatrix]
+  rw [hdiag, Matrix.exp_diagonal]
+  ext i j
+  fin_cases i <;> fin_cases j <;>
+    norm_num [Complex.exp_eq_exp_ℂ]
+
+private theorem matrixExponentialCounterexampleY_formula :
+    NormedSpace.exp
+        (HDP.complexifyMatrix matrixExponentialCounterexampleY) =
+      !![(Complex.exp 1 + Complex.exp (-1)) / 2,
+          (Complex.exp 1 - Complex.exp (-1)) / 2;
+          (Complex.exp 1 - Complex.exp (-1)) / 2,
+          (Complex.exp 1 + Complex.exp (-1)) / 2] := by
+  let D : Matrix (Fin 2) (Fin 2) ℂ :=
+    diagonal ![(1 : ℂ), -1]
+  have hdiag :
+      HDP.complexifyMatrix matrixExponentialCounterexampleY =
+        (matrixExponentialHadamardUnit :
+            Matrix (Fin 2) (Fin 2) ℂ) * D *
+          (↑(matrixExponentialHadamardUnit⁻¹) :
+            Matrix (Fin 2) (Fin 2) ℂ) := by
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      norm_num [matrixExponentialCounterexampleY,
+        HDP.complexifyMatrix, matrixExponentialHadamardUnit, D,
+        Matrix.mul_apply, dotProduct, Matrix.vecMul, Fin.sum_univ_two]
+  rw [hdiag]
+  have hexp :=
+    Matrix.exp_units_conj matrixExponentialHadamardUnit D
+  change NormedSpace.exp
+      ((matrixExponentialHadamardUnit :
+          Matrix (Fin 2) (Fin 2) ℂ) * D *
+        (↑(matrixExponentialHadamardUnit⁻¹) :
+          Matrix (Fin 2) (Fin 2) ℂ)) =
+      (matrixExponentialHadamardUnit :
+          Matrix (Fin 2) (Fin 2) ℂ) *
+        NormedSpace.exp D *
+        (↑(matrixExponentialHadamardUnit⁻¹) :
+          Matrix (Fin 2) (Fin 2) ℂ) at hexp
+  rw [hexp, Matrix.exp_diagonal]
+  ext i j
+  fin_cases i <;> fin_cases j <;>
+    norm_num [matrixExponentialHadamardUnit, D, Matrix.mul_apply,
+      dotProduct, Matrix.vecMul, Fin.sum_univ_two,
+      Complex.exp_eq_exp_ℂ] <;> ring
+
+/-- The scalar identity `exp(x+y)=exp(x)exp(y)` fails for symmetric
+noncommuting matrices. For the two explicit matrices above, the exponential
+of their sum is Hermitian, whereas the product of their exponentials has
+unequal off-diagonal entries.
+
+**Book Section 5.4.2; Exercise 5.19.** -/
+theorem matrixExponential_add_ne_mul_counterexample :
+    NormedSpace.exp (HDP.complexifyMatrix
+        (matrixExponentialCounterexampleX +
+          matrixExponentialCounterexampleY)) ≠
+      NormedSpace.exp
+          (HDP.complexifyMatrix matrixExponentialCounterexampleX) *
+        NormedSpace.exp
+          (HDP.complexifyMatrix matrixExponentialCounterexampleY) := by
+  intro h
+  have hXY :
+      (HDP.complexifyMatrix
+        (matrixExponentialCounterexampleX +
+          matrixExponentialCounterexampleY)).IsHermitian := by
+    apply HDP.complexifyMatrix_isHermitian
+    ext i j
+    fin_cases i <;> fin_cases j <;>
+      norm_num [matrixExponentialCounterexampleX,
+        matrixExponentialCounterexampleY]
+  have hprod :
+      (NormedSpace.exp
+          (HDP.complexifyMatrix matrixExponentialCounterexampleX) *
+        NormedSpace.exp
+          (HDP.complexifyMatrix
+            matrixExponentialCounterexampleY)).IsHermitian := by
+    rw [← h]
+    exact hXY.exp
+  rw [matrixExponentialCounterexampleX_formula,
+    matrixExponentialCounterexampleY_formula] at hprod
+  have hentry := congrArg
+    (fun M : Matrix (Fin 2) (Fin 2) ℂ => M 1 0) hprod
+  simp [Matrix.conjTranspose_apply, Matrix.mul_apply,
+    Fin.sum_univ_two] at hentry
+  have hreal := congrArg Complex.re hentry
+  simp [Complex.exp_re, Complex.exp_im] at hreal
+  have hsinh :
+      0 < (Real.exp 1 - Real.exp (-1)) / 2 := by
+    have hexp := Real.exp_lt_exp.mpr
+      (by norm_num : (-1 : ℝ) < 1)
+    linarith
+  have hexp : 1 < Real.exp 1 := by
+    simpa only [Real.exp_zero] using
+      (Real.exp_lt_exp.mpr (by norm_num : (0 : ℝ) < 1))
+  nlinarith
 
 /-- Golden--Thompson trace-exponential inequality.
 

@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **601 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 66 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,431 theorems, 1,006 lemmas, and 792 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **602 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 59 / 99 / 61 |
+| Core declarations | 2,432 theorems, 1,006 lemmas, and 794 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -426,6 +426,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Proposition 5.4.4 | Loewner order implies eigenvalue/trace monotonicity, norm intervals, and scalar spectral inequalities. | `HDP.Chapter5.loewner_lambdaMax_mono` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Remark 5.4.5 | `‖X‖<=a` is equivalent to `-aI <= X <= aI`. | `HDP.Chapter5.matrixNorm_gives_loewnerInterval` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Theorem 5.4.7 | Golden--Thompson trace-exponential inequality. | `HDP.Chapter5.goldenThompsonReal` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
+| Section 5.4.2; Exercise 5.19 | Explicit symmetric `2×2` matrices show that `exp(X+Y)=exp(X)exp(Y)` fails without commutation. | `HDP.Chapter5.matrixExponential_add_ne_mul_counterexample` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Theorem 5.4.8 | Lieb concavity of `A -> tr exp(H+log A)`. | `HDP.Chapter5.liebConcavityReal` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Lemma 5.4.9 | Expected/random-matrix form of Lieb's inequality. | `HDP.Chapter5.randomLiebReal` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Lemma 5.4.10 | Matrix MGF is bounded by the variance term in the Bernstein range. | `HDP.Chapter5.matrixBernsteinMgf` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
