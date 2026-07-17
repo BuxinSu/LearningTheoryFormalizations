@@ -538,43 +538,59 @@ noncomputable def orthonormalBasisMatrix {n : ℕ}
 theorem orthonormalBasisMatrix_mem_orthogonal {n : ℕ}
     (b : OrthonormalBasis (Fin n) ℝ (EuclideanSpace ℝ (Fin n))) :
     orthonormalBasisMatrix b ∈ Matrix.orthogonalGroup (Fin n) ℝ := by
-  rw [Matrix.mem_orthogonalGroup_iff]
+  rw [Matrix.mem_orthogonalGroup_iff']
   ext i j
-  rw [Matrix.mul_apply, Matrix.transpose_apply, Matrix.one_apply]
-  simpa [orthonormalBasisMatrix, PiLp.inner_apply, RCLike.inner_apply]
-    using b.orthonormal i j
+  rw [Matrix.mul_apply, Matrix.one_apply]
+  change (∑ k, orthonormalBasisMatrix b k i *
+    orthonormalBasisMatrix b k j) = if i = j then 1 else 0
+  simpa [orthonormalBasisMatrix, PiLp.inner_apply, RCLike.inner_apply,
+    eq_comm]
+    using orthonormal_iff_ite.mp b.orthonormal j i
 
-/-- Extend the left singular family of a compact SVD to an orthonormal basis
-of its ambient Euclidean space.
+/-- Extend a finite orthonormal family to a coordinate-indexed orthonormal
+basis of its ambient Euclidean space.
 
 **Lean implementation helper.** -/
-private theorem exists_leftSingularOrthonormalBasis
-    {m n : ℕ} {A : Matrix (Fin m) (Fin n) ℝ} (s : RealSVD A) :
-    ∃ b : OrthonormalBasis (Fin m) ℝ (EuclideanSpace ℝ (Fin m)),
-      ∀ k : Fin (min m n),
-        b (Fin.castLE (Nat.min_le_left m n) k) = s.left k := by
+private theorem exists_singularOrthonormalBasis
+    {r d : ℕ} (hrd : r ≤ d)
+    (v : Fin r → EuclideanSpace ℝ (Fin d)) (hv : Orthonormal ℝ v) :
+    ∃ b : OrthonormalBasis (Fin d) ℝ (EuclideanSpace ℝ (Fin d)),
+      ∀ k : Fin r, b (Fin.castLE hrd k) = v k := by
   classical
-  let e : Fin (min m n) → Fin m := Fin.castLE (Nat.min_le_left m n)
-  let w : Fin m → EuclideanSpace ℝ (Fin m) := fun j =>
-    if h : (j : ℕ) < min m n then s.left ⟨j, h⟩ else 0
-  let S : Set (Fin m) := {j | (j : ℕ) < min m n}
-  have hwe (k : Fin (min m n)) : w (e k) = s.left k := by
-    simp [w, e, Fin.castLE, k.isLt]
+  let e : Fin r → Fin d := Fin.castLE hrd
+  let w : Fin d → EuclideanSpace ℝ (Fin d) := fun j =>
+    if h : (j : ℕ) < r then v ⟨j, h⟩ else 0
+  let S : Set (Fin d) := {j | (j : ℕ) < r}
+  have hwe (k : Fin r) : w (e k) = v k := by
+    simp only [w, e]
+    split_ifs with h
+    · exact congrArg v (Fin.ext rfl)
+    · exact (h k.isLt).elim
   have hON : Orthonormal ℝ (S.restrict w) := by
     rw [orthonormal_iff_ite]
     rintro ⟨i, hi⟩ ⟨j, hj⟩
-    have hwi : S.restrict w ⟨i, hi⟩ = s.left ⟨i, hi⟩ := by
-      simp [w, S] at hi ⊢
-      exact hi
-    have hwj : S.restrict w ⟨j, hj⟩ = s.left ⟨j, hj⟩ := by
-      simp [w, S] at hj ⊢
-      exact hj
-    rw [hwi, hwj, orthonormal_iff_ite.mp s.left_orthonormal]
-    simp only [Fin.mk.injEq, Subtype.mk.injEq]
+    change (i : ℕ) < r at hi
+    change (j : ℕ) < r at hj
+    have hwi : S.restrict w ⟨i, hi⟩ = v ⟨i, hi⟩ := by
+      simp only [Set.restrict_apply, w]
+      simp [hi]
+    have hwj : S.restrict w ⟨j, hj⟩ = v ⟨j, hj⟩ := by
+      simp only [Set.restrict_apply, w]
+      simp [hj]
+    rw [hwi, hwj, orthonormal_iff_ite.mp hv]
+    by_cases hij : i = j
+    · subst j
+      simp
+    · have hval : (i : ℕ) ≠ (j : ℕ) := by
+        intro h
+        exact hij (Fin.ext h)
+      simp [hij, hval]
   obtain ⟨b, hb⟩ := hON.exists_orthonormalBasis_extension_of_card_eq
     (by rw [finrank_euclideanSpace_fin, Fintype.card_fin])
   refine ⟨b, fun k => ?_⟩
-  rw [hb (e k) (by simp [S, e, Fin.castLE, k.isLt]), hwe]
+  rw [hb (e k) (by
+    change ((e k : Fin d) : ℕ) < r
+    exact k.isLt), hwe]
 
 /-- The rectangular diagonal matrix whose first `min m n` diagonal entries
 are the singular values of `s`.
@@ -601,8 +617,15 @@ private lemma orthonormalBasisMatrix_single_mul
       c • outerMatrix (bU a) (bV b) := by
   classical
   ext i j
-  simp [Matrix.mul_apply, orthonormalBasisMatrix, outerMatrix,
-    Matrix.vecMulVec_apply]
+  rw [Matrix.mul_apply, Finset.sum_eq_single b]
+  · rw [Matrix.mul_single_apply_same]
+    simp [orthonormalBasisMatrix, outerMatrix, Matrix.vecMulVec_apply]
+    ring
+  · intro x _ hxb
+    rw [Matrix.mul_single_apply_of_ne (M := orthonormalBasisMatrix bU)
+      (c := c) (i := a) (j := b) (a := i) (b := x) hxb]
+    simp
+  · simp
 
 /-- Every real rectangular matrix has the literal matrix-form SVD
 `A = U Σ Vᵀ`: the compact singular families extend to orthonormal bases,
@@ -628,31 +651,14 @@ theorem exists_matrixFormSVD {m n : ℕ}
           (orthonormalBasisMatrix bV)ᵀ := by
   classical
   let s := Classical.choice (exists_singularValueDecomposition A)
-  obtain ⟨bU, hbU⟩ := exists_leftSingularOrthonormalBasis s
-  have hright :
-      ∃ b : OrthonormalBasis (Fin n) ℝ (EuclideanSpace ℝ (Fin n)),
-        ∀ k : Fin (min m n),
-          b (Fin.castLE (Nat.min_le_right m n) k) = s.right k := by
-    let st : RealSVD Aᵀ := {
-      left := s.right
-      right := s.left
-      singularValue := s.singularValue
-      left_orthonormal := s.right_orthonormal
-      right_orthonormal := s.left_orthonormal
-      singularValue_nonneg := s.singularValue_nonneg
-      singularValue_antitone := s.singularValue_antitone
-      eq_sum_outer := by
-        rw [show min n m = min m n by omega]
-        rw [← s.eq_sum_outer]
-        simp }
-    obtain ⟨b, hb⟩ := exists_leftSingularOrthonormalBasis st
-    refine ⟨b, fun k => ?_⟩
-    simpa [st] using hb k
-  obtain ⟨bV, hbV⟩ := hright
+  obtain ⟨bU, hbU⟩ := exists_singularOrthonormalBasis
+    (Nat.min_le_left m n) s.left s.left_orthonormal
+  obtain ⟨bV, hbV⟩ := exists_singularOrthonormalBasis
+    (Nat.min_le_right m n) s.right s.right_orthonormal
   refine ⟨s, bU, bV, hbU, hbV,
     orthonormalBasisMatrix_mem_orthogonal bU,
     orthonormalBasisMatrix_mem_orthogonal bV, ?_⟩
-  rw [s.eq_sum_outer]
+  conv_lhs => rw [s.eq_sum_outer]
   simp only [rectangularSingularValueMatrix, Matrix.mul_sum,
     Matrix.sum_mul]
   apply Finset.sum_congr rfl
@@ -3252,6 +3258,7 @@ theorem matrixLpToLpNorm_attained (p q : ℝ≥0∞)
   change ‖L x‖ = ‖L‖
   exact le_antisymm hmax_le hnorm_le
 
+/-
 /-- Values of the `ℓᵖ` matrix bilinear form on the primal and dual closed
 unit balls.
 
@@ -3291,8 +3298,9 @@ theorem matrixLpToLpNorm_bilinear_isGreatest
           (norm_nonneg _) zero_le_one
       _ ≤ 1 * (matrixLpToLpNorm p q A * 1) := by
         gcongr
-        exact matrixLpToLpNorm_nonneg p q A
+        exact norm_nonneg _
       _ = matrixLpToLpNorm p q A := by ring
+-/
 
 /-- The same induced-norm construction works for arbitrary finite-dimensional `p → q` norms,
 including the endpoint `∞`.
@@ -4026,6 +4034,48 @@ theorem finiteLpPairing_exists_norming {ι : Type*} [Fintype ι]
                     rw [real_sign_mul_self_eq_abs]
                   _ = |WithLp.ofLp z i| * (g i : ℝ) := mul_comm _ _
           _ = _ := hpairR
+
+/-- Values of the `ℓᵖ` matrix bilinear form on the primal and dual closed
+unit balls.
+
+**Lean implementation helper.** -/
+def matrixLpBilinearUnitBallValues (p q q' : ℝ≥0∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ q')]
+    {m n : Type*} [Fintype m] [Fintype n] [DecidableEq n]
+    (A : Matrix m n ℝ) : Set ℝ :=
+  {z | ∃ x : WithLp p (n → ℝ), ∃ y : WithLp q' (m → ℝ),
+    ‖x‖ ≤ 1 ∧ ‖y‖ ≤ 1 ∧
+      z = |finiteLpPairing y (Matrix.toLpLin p q A x)|}
+
+/-- The general induced `ℓᵖ → ℓᑫ` norm equals the maximum of the associated
+bilinear form over the primal `ℓᵖ` and conjugate `ℓ^{q'}` unit balls.
+
+**Book Remark 4.1.9.** -/
+theorem matrixLpToLpNorm_bilinear_isGreatest
+    (p q q' : ℝ≥0∞) [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    [Fact (1 ≤ q')] [q'.HolderConjugate q]
+    {m n : Type*} [Fintype m] [Fintype n] [DecidableEq n]
+    (A : Matrix m n ℝ) :
+    IsGreatest (matrixLpBilinearUnitBallValues p q q' A)
+      (matrixLpToLpNorm p q A) := by
+  obtain ⟨x, hx, hAx⟩ := matrixLpToLpNorm_attained p q A
+  obtain ⟨y, hy, hpair⟩ := finiteLpPairing_exists_norming q' q
+    (Matrix.toLpLin p q A x)
+  constructor
+  · refine ⟨x, y, hx, hy, ?_⟩
+    rw [hpair, abs_of_nonneg (norm_nonneg _), hAx]
+  · rintro z ⟨u, v, hu, hv, rfl⟩
+    calc
+      |finiteLpPairing v (Matrix.toLpLin p q A u)| ≤
+          ‖v‖ * ‖Matrix.toLpLin p q A u‖ :=
+        finiteLpPairing_abs_le q' q v _
+      _ ≤ 1 * (matrixLpToLpNorm p q A * ‖u‖) := by
+        exact mul_le_mul hv (matrixLpToLpNorm_apply_le p q A u)
+          (norm_nonneg _) zero_le_one
+      _ ≤ 1 * (matrixLpToLpNorm p q A * 1) := by
+        gcongr
+        exact norm_nonneg _
+      _ = matrixLpToLpNorm p q A := by ring
 
 /-- Transposing a matrix transfers it across the finite pairing.
 

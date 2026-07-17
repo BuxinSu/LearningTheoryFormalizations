@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **590 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 61 / 88 / 66 / 39 / 58 / 99 / 61 |
-| Core declarations | 2,406 theorems, 1,006 lemmas, and 783 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **591 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 61 / 88 / 66 / 39 / 59 / 99 / 61 |
+| Core declarations | 2,408 theorems, 1,006 lemmas, and 784 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -99,7 +99,7 @@ When a result is already available in Mathlib, the development uses or specializ
 
 ## Book → Lean correspondence
 
-This table records **566 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
+This table records **591 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
 
 ### Appetizer — Using Probability to Cover a Set
 
@@ -261,7 +261,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Proposition 3.3.6; (3.13) | Invertible-covariance multivariate Gaussian density formula. | `HDP.Chapter3.multivariateGaussianDensity` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Corollary 3.3.7 | Jointly Gaussian variables are independent iff uncorrelated. | `ProbabilityTheory.HasGaussianLaw.iIndepFun_of_covariance_strongDual` | `.lake/packages/mathlib/Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean` |
 | Proposition 3.3.8 | The uniform law on `sqrt(n) S^{n-1}` is isotropic. | `HDP.Chapter3.sphere_isIsotropic` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
-| Eq. (3.14) | Independent uniform unit directions have squared inner-product mean `1/n` and satisfy the explicit tail bound `P{|⟨X,Y⟩|≥C/√n}≤1/C²`. | `HDP.Chapter3.uniformSphere_almost_orthogonal` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Eq. (3.14) | Independent uniform unit directions have squared inner-product mean `1/n` and satisfy `P{|⟨X,Y⟩|≥C/√n}≤1/C²`. | `HDP.Chapter3.uniformSphere_inner_sq_expectation`, `HDP.Chapter3.uniformSphere_almost_orthogonal` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.15) | A normalized standard Gaussian direction is uniform on the sphere. | `HDP.map_gaussianDirection_stdGaussian` | [`Prelude/Sphere.lean`](Prelude/Sphere.lean) |
 | (3.16) | Standard-Gaussian norm concentrates around `sqrt(n)`. | `HDP.Chapter3.stdGaussian_norm_deviation_tail` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Theorem 3.3.9 | Projective CLT: all one-dimensional marginals of the high-dimensional sphere converge to standard normal. | `HDP.Chapter3.projectiveCentralLimitTheorem` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
@@ -512,6 +512,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Book source | Result | Lean declaration | Final module |
 |---|---|---|---|
 | Definition 7.1.1 | A random process is a family of random variables on one probability space, indexed by a set. | `HDP.RandomProcess` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
+| Example 7.1.6 | Brownian motion and an independent centered unit-variance random walk have the square-root canonical increment metrics `d(t,s)=√(t-s)` and `d(n,m)=√(n-m)`. | `HDP.Chapter7.brownian_processIncrement`, `HDP.Chapter7.randomWalk_processIncrement` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Remark 7.1.7 | `L2` increments obey zero, symmetry, and the triangle inequality. | `HDP.processIncrement_pseudometric_laws` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Remark 7.1.8 | Squared increments equal `Sigma(t,t)-2 Sigma(t,s)+Sigma(s,s)`; with a zero coordinate, increments recover covariance. | `HDP.processIncrement_sq_eq_covariance` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Definition 7.1.9 | A Gaussian process has jointly Gaussian restriction to every finite index set; equivalently every finite linear combination is Gaussian. | `HDP.Chapter7.isGaussianProcess_iff_finset` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
