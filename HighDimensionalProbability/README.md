@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **588 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 59 / 88 / 66 / 39 / 58 / 99 / 61 |
-| Core declarations | 2,402 theorems, 1,006 lemmas, and 780 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **589 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 60 / 88 / 66 / 39 / 58 / 99 / 61 |
+| Core declarations | 2,404 theorems, 1,006 lemmas, and 783 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -254,6 +254,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | (3.10) | Standard-score/whitening transform and affine reconstruction. | `HDP.Chapter3.exercise_3_10a` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.11) | Standard multivariate Gaussian density is proportional to `exp(-‖z‖^2/2)`. | `HDP.Chapter3.exercise_3_15_standardDensity` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Proposition 3.3.1 | Standard Gaussian law is rotation invariant. | `HDP.Chapter3.standardGaussian_rotation_invariant` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Definition 3.3.4 | A general Gaussian vector is exactly an arbitrary rectangular affine image `μ+AZ` of a standard Gaussian, with covariance `AAᵀ`. | `HDP.Chapter3.hasGaussianVectorLaw_iff_affineRepresentation` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Corollary 3.3.2 | Every standard-Gaussian marginal `<Z,v>` is Gaussian with variance `‖v‖^2`. | `HDP.Chapter3.standardGaussian_inner_hasLaw` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Corollary 3.3.3 | A finite sum of independent real Gaussians is Gaussian, with summed mean and summed variance. | `HDP.Chapter3.sum_independent_gaussians_parameters` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Proposition 3.3.5; (3.12) | Gaussian law is uniquely determined by mean and covariance, including singular covariance. | `HDP.Chapter3.gaussianLaw_unique` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |

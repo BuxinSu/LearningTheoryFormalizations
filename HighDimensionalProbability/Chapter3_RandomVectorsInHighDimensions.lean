@@ -62,6 +62,8 @@ import Mathlib.MeasureTheory.Integral.Prod
     Definition 3.2.5.**
 - §3.3 Examples of high-dimensional distributions
   - Product distributions. **Book Proposition 3.3.1; Corollaries 3.3.2–3.3.3.**
+  - General Gaussian vectors as arbitrary rectangular affine images.
+    **Book Definition 3.3.4.**
   - Spherical and Gaussian models. **Book Propositions 3.3.5–3.3.8;
     Equations (3.12)–(3.17).**
   - Concentration in the Euclidean ball and canonical examples.
@@ -4078,6 +4080,135 @@ open scoped ENNReal NNReal RealInnerProductSpace MatrixOrder
 namespace HDP.Chapter3
 
 noncomputable section
+
+/-! ## Book Definition 3.3.4: affine Gaussian representations -/
+
+/-- The continuous linear map represented by a rectangular real matrix on
+Euclidean spaces.
+
+**Lean implementation helper.** -/
+def rectangularEuclideanCLM {n k : ℕ} (A : Matrix (Fin n) (Fin k) ℝ) :
+    EuclideanSpace ℝ (Fin k) →L[ℝ] EuclideanSpace ℝ (Fin n) :=
+  LinearMap.toContinuousLinearMap (Matrix.toLpLin 2 2 A)
+
+/-- The law of the affine image `μ + AZ` of a standard Gaussian vector
+`Z ∈ ℝᵏ`.
+
+**Book Definition 3.3.4.** -/
+def affineGaussianMeasure {n k : ℕ}
+    (mu : EuclideanSpace ℝ (Fin n))
+    (A : Matrix (Fin n) (Fin k) ℝ) :
+    Measure (EuclideanSpace ℝ (Fin n)) :=
+  (stdGaussian (EuclideanSpace ℝ (Fin k))).map
+    (fun z => mu + rectangularEuclideanCLM A z)
+
+/-- An affine image `μ + AZ` of a standard Gaussian has multivariate Gaussian
+law with covariance `AAᵀ`, for an arbitrary rectangular matrix `A`.
+
+**Book Definition 3.3.4.** -/
+theorem affineGaussianMeasure_eq_multivariateGaussian {n k : ℕ}
+    (mu : EuclideanSpace ℝ (Fin n))
+    (A : Matrix (Fin n) (Fin k) ℝ) :
+    affineGaussianMeasure mu A =
+      multivariateGaussian mu (A * A.transpose) := by
+  let nu := affineGaussianMeasure mu A
+  have hnu : IsGaussian nu := by
+    dsimp [nu, affineGaussianMeasure]
+    rw [show (fun z => mu + rectangularEuclideanCLM A z) =
+      (fun x => mu + x) ∘ rectangularEuclideanCLM A by rfl]
+    rw [← Measure.map_map (measurable_const_add mu) (by fun_prop)]
+    infer_instance
+  letI : IsGaussian nu := hnu
+  apply IsGaussian.ext
+  · dsimp [nu, affineGaussianMeasure]
+    rw [integral_map (by fun_prop) (by fun_prop)]
+    rw [integral_add (integrable_const _) (by
+      exact IsGaussian.integrable_id.comp_measurable (by fun_prop)),
+      integral_const]
+    have hLmean : ∫ a, rectangularEuclideanCLM A a ∂stdGaussian
+        (EuclideanSpace ℝ (Fin k)) = 0 := by
+      calc
+        _ = rectangularEuclideanCLM A (∫ a, a ∂stdGaussian
+            (EuclideanSpace ℝ (Fin k))) := by
+          simpa using (rectangularEuclideanCLM A).integral_comp_comm
+            (φ := fun a => a) IsGaussian.integrable_id
+        _ = 0 := by rw [integral_id_stdGaussian]; simp
+    rw [hLmean, integral_id_multivariateGaussian]
+    simp
+  · ext x y
+    dsimp [nu, affineGaussianMeasure]
+    rw [show (fun z => mu + rectangularEuclideanCLM A z) =
+      (fun x => mu + x) ∘ rectangularEuclideanCLM A by rfl]
+    rw [← Measure.map_map (measurable_const_add mu) (by fun_prop),
+      covarianceBilin_map_const_add,
+      covarianceBilin_map IsGaussian.memLp_two_id,
+      covarianceBilin_stdGaussian]
+    rw [covarianceBilin_multivariateGaussian]
+    · unfold rectangularEuclideanCLM
+      change inner ℝ
+          (A.toEuclideanLin.toContinuousLinearMap.adjoint x)
+          (A.toEuclideanLin.toContinuousLinearMap.adjoint y) = _
+      have hadj (z : EuclideanSpace ℝ (Fin n)) :
+          A.toEuclideanLin.toContinuousLinearMap.adjoint z =
+            A.transpose.toEuclideanLin z := by
+        have h := congrArg (fun L : EuclideanSpace ℝ (Fin n) →ₗ[ℝ]
+            EuclideanSpace ℝ (Fin k) => L z)
+          (Matrix.toEuclideanLin_conjTranspose_eq_adjoint A)
+        rw [ContinuousLinearMap.adjoint_toLinearMap] at h
+        simpa only [Matrix.conjTranspose_eq_transpose_of_trivial] using h.symm
+      rw [hadj, hadj]
+      rw [real_inner_comm, ContinuousLinearMap.adjoint_inner_left]
+      change inner ℝ x (A.toEuclideanLin (A.transpose.toEuclideanLin y)) = _
+      simp [PiLp.inner_apply, Matrix.mulVec_mulVec]
+    · simpa only [Matrix.conjTranspose_eq_transpose_of_trivial] using
+        Matrix.posSemidef_self_mul_conjTranspose A
+
+/-- A random vector admits an affine Gaussian representation with the stated
+mean and covariance when its law is the pushforward of a standard Gaussian
+under some rectangular affine map `z ↦ μ + Az`.
+
+**Book Definition 3.3.4.** -/
+def HasAffineGaussianRepresentation
+    {Ω : Type*} [MeasurableSpace Ω] {n : ℕ}
+    (X : Ω → EuclideanSpace ℝ (Fin n)) (P : Measure Ω)
+    (mu : EuclideanSpace ℝ (Fin n))
+    (S : Matrix (Fin n) (Fin n) ℝ) : Prop :=
+  AEMeasurable X P ∧ ∃ k : ℕ, ∃ A : Matrix (Fin n) (Fin k) ℝ,
+    S = A * A.transpose ∧
+      Measure.map X P = affineGaussianMeasure mu A
+
+/-- For positive-semidefinite covariance, the specified multivariate Gaussian
+law is equivalent to the book's definition as an affine image `μ + AZ` of a
+standard Gaussian vector of an arbitrary finite dimension.
+
+**Book Definition 3.3.4.** -/
+theorem hasGaussianVectorLaw_iff_affineRepresentation
+    {Ω : Type*} [MeasurableSpace Ω] {n : ℕ}
+    (X : Ω → EuclideanSpace ℝ (Fin n)) (P : Measure Ω)
+    (mu : EuclideanSpace ℝ (Fin n))
+    {S : Matrix (Fin n) (Fin n) ℝ} (hS : S.PosSemidef) :
+    HDP.HasGaussianVectorLaw X P mu S ↔
+      HasAffineGaussianRepresentation X P mu S := by
+  constructor
+  · rintro ⟨hXm, hmap⟩
+    refine ⟨hXm, n, CFC.sqrt S, ?_, ?_⟩
+    · have hsqrtT : (CFC.sqrt S)ᵀ = CFC.sqrt S := by
+        simpa only [Matrix.IsHermitian,
+          Matrix.conjTranspose_eq_transpose_of_trivial, sub_zero] using
+          (CFC.sqrt_nonneg S).isHermitian
+      rw [hsqrtT]
+      exact (CFC.sqrt_mul_sqrt_self S hS.nonneg).symm
+    · rw [hmap, affineGaussianMeasure_eq_multivariateGaussian]
+      congr 2
+      have hsqrtT : (CFC.sqrt S)ᵀ = CFC.sqrt S := by
+        simpa only [Matrix.IsHermitian,
+          Matrix.conjTranspose_eq_transpose_of_trivial, sub_zero] using
+          (CFC.sqrt_nonneg S).isHermitian
+      rw [hsqrtT]
+      exact (CFC.sqrt_mul_sqrt_self S hS.nonneg).symm
+  · rintro ⟨hXm, k, A, hSA, hmap⟩
+    refine ⟨hXm, ?_⟩
+    rw [hmap, affineGaussianMeasure_eq_multivariateGaussian, hSA]
 
 /-! ## Book Proposition 3.3.1: rotation invariance -/
 
