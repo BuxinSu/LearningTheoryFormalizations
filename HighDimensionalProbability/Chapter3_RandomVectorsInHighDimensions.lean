@@ -87,7 +87,8 @@ import Mathlib.MeasureTheory.Integral.Prod
     **Book Definition 3.7.1; Equation (3.36).**
   - Positive-semidefinite kernels and feature maps. **Book Examples 3.7.2–3.7.3;
     Lemmas 3.7.4 and 3.7.7.**
-  - Polynomial and Gaussian kernel embeddings. **Book Equations (3.37)–(3.38).**
+  - Scalar Moore–Aronszajn equivalence and polynomial/Gaussian kernel
+    embeddings. **Book Equations (3.37)–(3.38).**
 -/
 
 /-! ## Material formerly in `01_NormConcentration.lean` -/
@@ -13012,6 +13013,105 @@ theorem inner_gaussianKernelFeature {σ : ℝ} (hσ : σ ≠ 0)
 end HDP
 
 namespace HDP.Chapter3
+
+/-- Embed a real scalar kernel into Mathlib's operator-valued RKHS interface
+by letting each entry act as scalar multiplication on `ℝ`.
+
+**Lean implementation helper.** -/
+noncomputable def scalarKernelOperator {X : Type*} (K : Matrix X X ℝ) :
+    Matrix X X (ℝ →L[ℝ] ℝ) :=
+  fun x y ↦ K x y • ContinuousLinearMap.id ℝ ℝ
+
+/-- Positive semidefiniteness of a scalar kernel is preserved by its
+scalar-multiplication operator embedding.
+
+**Lean implementation helper.** -/
+private theorem scalarKernelOperator_posSemidef
+    {X : Type*} {K : Matrix X X ℝ} (hK : K.PosSemidef) :
+    (scalarKernelOperator K).PosSemidef := by
+  refine ((RKHS.posSemidef_tfae
+    (K := scalarKernelOperator K)).out 0 2).mpr ?_
+  constructor
+  · ext x y
+    simp only [scalarKernelOperator, Matrix.conjTranspose_apply,
+      star_smul, ContinuousLinearMap.star_eq_adjoint, smul_apply,
+      ContinuousLinearMap.id_apply]
+    simpa using hK.isHermitian.apply x y
+  · intro v
+    rw [Finsupp.sum_comm]
+    simpa [scalarKernelOperator, mul_assoc, mul_comm, mul_left_comm] using
+      hK.2 v
+
+universe u
+
+/-- A positive semidefinite scalar kernel has a feature map into the complete
+Hilbert space produced by the Moore–Aronszajn construction.
+
+**Lean implementation helper.** -/
+private theorem exists_scalarKernel_featureMap
+    {X : Type u} {K : Matrix X X ℝ} (hK : K.PosSemidef) :
+    ∃ (H : Type u) (_ : NormedAddCommGroup H)
+        (_ : InnerProductSpace ℝ H) (_ : CompleteSpace H)
+        (Φ : X → H), ∀ x y, inner ℝ (Φ x) (Φ y) = K x y := by
+  let L := scalarKernelOperator K
+  letI : Fact L.PosSemidef := ⟨scalarKernelOperator_posSemidef hK⟩
+  let H := RKHS.OfKernel L
+  refine ⟨H, inferInstance, inferInstance, inferInstance,
+    fun x ↦ RKHS.kerFun H x 1, ?_⟩
+  intro x y
+  have hxy := RKHS.kernel_inner (H := H) y x (1 : ℝ) (1 : ℝ)
+  rw [RKHS.OfKernel.kernel_ofKernel] at hxy
+  have hsym : K y x = K x y := by
+    simpa [Matrix.IsHermitian, Matrix.conjTranspose_apply] using
+      (congrFun (congrFun hK.isHermitian y) x).symm
+  simpa [L, scalarKernelOperator, hsym] using hxy.symm
+
+/-- Every Hilbert-space feature map generates a positive semidefinite scalar
+Gram kernel, even when the index type is infinite.
+
+**Lean implementation helper.** -/
+private theorem featureGram_posSemidef {X H : Type*}
+    [NormedAddCommGroup H] [InnerProductSpace ℝ H] (Φ : X → H) :
+    (Matrix.of fun x y ↦ inner ℝ (Φ x) (Φ y)).PosSemidef := by
+  constructor
+  · ext x y
+    simp [Matrix.conjTranspose_apply, real_inner_comm]
+  · intro v
+    rw [show v.sum (fun i xi ↦ v.sum fun j xj ↦
+        star xi * (Matrix.of fun x y ↦ inner ℝ (Φ x) (Φ y)) i j * xj) =
+      inner ℝ (v.sum fun i xi ↦ xi • Φ i)
+        (v.sum fun j xj ↦ xj • Φ j) by
+      rw [v.sum_inner]
+      apply Finsupp.sum_congr
+      intro i hi
+      rw [v.inner_sum]
+      apply Finsupp.sum_congr
+      intro j hj
+      simp [inner_smul_left, inner_smul_right, mul_assoc]
+      ring]
+    exact real_inner_self_nonneg
+
+/-- A real scalar kernel admits a Hilbert-space feature map exactly when it
+is positive semidefinite. This is the source's elementary scalar
+Moore–Aronszajn equivalence, including necessity and sufficiency.
+
+**Book Equation (3.38); Moore–Aronszajn theorem.** -/
+theorem scalarKernel_featureMap_iff_posSemidef
+    {X : Type u} (K : Matrix X X ℝ) :
+    K.PosSemidef ↔
+      ∃ (H : Type u) (_ : NormedAddCommGroup H)
+          (_ : InnerProductSpace ℝ H) (_ : CompleteSpace H)
+          (Φ : X → H), ∀ x y, inner ℝ (Φ x) (Φ y) = K x y := by
+  constructor
+  · exact exists_scalarKernel_featureMap
+  · rintro ⟨H, hnorm, hinner, hcomplete, Φ, hΦ⟩
+    letI : NormedAddCommGroup H := hnorm
+    letI : InnerProductSpace ℝ H := hinner
+    letI : CompleteSpace H := hcomplete
+    have hp := featureGram_posSemidef Φ
+    convert hp using 1
+    ext x y
+    exact (hΦ x y).symm
 
 /-- A positive-semidefinite operator-valued kernel generates a completed
 reproducing-kernel Hilbert space whose kernel is exactly the original one.
