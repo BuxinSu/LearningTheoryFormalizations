@@ -40,7 +40,8 @@ import Mathlib.Probability.Distributions.Exponential
   - Binomial upper and lower deviations. **Book Theorem 2.3.1;
     Equations (2.9)–(2.13); Corollary 2.3.4.**
 - §2.4 Median-of-means estimator
-  - A robust mean estimator under a finite-variance assumption. **Book Theorem 2.4.1.**
+  - One-coordinate robustness of the median and a robust mean estimator under
+    a finite-variance assumption. **Book Section 2.4; Theorem 2.4.1.**
 - §2.5 Degrees of random graphs
   - Degree concentration in the Erdős–Rényi model. **Book Proposition 2.5.1.**
 - §2.6 Subgaussian distributions
@@ -1998,6 +1999,57 @@ each side of it. The cardinal inequalities avoid parity conventions.
 def IsMedian {B : ℕ} (x : Fin B → ℝ) (M : ℝ) : Prop :=
   B ≤ 2 * (Finset.univ.filter fun i ↦ x i ≤ M).card ∧
     B ≤ 2 * (Finset.univ.filter fun i ↦ M ≤ x i).card
+
+/-- Changing one observation can move a median by at most one rank: after
+replacing coordinate `i`, the original sample still has all but at most one of
+the lower- and upper-half witnesses for any median of the contaminated sample.
+
+This is the cardinal form of the source's statement that sending one sample
+point to infinity leaves the median fixed or shifts it at most to the next
+sample point.
+
+**Book Section 2.4, median robustness paragraph.** -/
+theorem median_one_coordinate_robust {B : ℕ} {x y : Fin B → ℝ}
+    {i : Fin B} {M : ℝ} (hxy : ∀ j, j ≠ i → y j = x j)
+    (hM : IsMedian y M) :
+    B ≤ 2 * ((Finset.univ.filter fun j ↦ x j ≤ M).card + 1) ∧
+      B ≤ 2 * ((Finset.univ.filter fun j ↦ M ≤ x j).card + 1) := by
+  have lower_subset :
+      (Finset.univ.filter fun j ↦ y j ≤ M) ⊆
+        insert i (Finset.univ.filter fun j ↦ x j ≤ M) := by
+    intro j hj
+    by_cases hji : j = i
+    · simp [hji]
+    · simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hj
+      simp [hji, ← hxy j hji, hj]
+  have upper_subset :
+      (Finset.univ.filter fun j ↦ M ≤ y j) ⊆
+        insert i (Finset.univ.filter fun j ↦ M ≤ x j) := by
+    intro j hj
+    by_cases hji : j = i
+    · simp [hji]
+    · simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hj
+      simp [hji, ← hxy j hji, hj]
+  have lower_card :
+      (Finset.univ.filter fun j ↦ y j ≤ M).card ≤
+        (Finset.univ.filter fun j ↦ x j ≤ M).card + 1 := by
+    calc
+      _ ≤ (insert i (Finset.univ.filter fun j ↦ x j ≤ M)).card :=
+        Finset.card_le_card lower_subset
+      _ ≤ (Finset.univ.filter fun j ↦ x j ≤ M).card + 1 := by
+        simpa [Nat.add_comm] using
+          Finset.card_insert_le i (Finset.univ.filter fun j ↦ x j ≤ M)
+  have upper_card :
+      (Finset.univ.filter fun j ↦ M ≤ y j).card ≤
+        (Finset.univ.filter fun j ↦ M ≤ x j).card + 1 := by
+    calc
+      _ ≤ (insert i (Finset.univ.filter fun j ↦ M ≤ x j)).card :=
+        Finset.card_le_card upper_subset
+      _ ≤ (Finset.univ.filter fun j ↦ M ≤ x j).card + 1 := by
+        simpa [Nat.add_comm] using
+          Finset.card_insert_le i (Finset.univ.filter fun j ↦ M ≤ x j)
+  exact ⟨hM.1.trans (Nat.mul_le_mul_left 2 lower_card),
+    hM.2.trans (Nat.mul_le_mul_left 2 upper_card)⟩
 
 /-- If a finite median is above a threshold, at least half of the sample points are above that threshold.
 

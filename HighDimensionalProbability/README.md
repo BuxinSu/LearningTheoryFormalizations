@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **591 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 61 / 88 / 66 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,408 theorems, 1,006 lemmas, and 784 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **592 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 61 / 88 / 66 / 39 / 59 / 99 / 61 |
+| Core declarations | 2,409 theorems, 1,006 lemmas, and 784 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -99,7 +99,7 @@ When a result is already available in Mathlib, the development uses or specializ
 
 ## Book → Lean correspondence
 
-This table records **591 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
+This table records **592 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
 
 ### Appetizer — Using Probability to Cover a Set
 
@@ -195,6 +195,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | (2.11) | Definition of the sample mean estimator. | `HDP.Chapter1.variance_sample_mean` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | (2.12) | Sample mean has mean `mu` and variance `sigma^2/N`. | `HDP.Chapter1.expectation_linear` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | (2.13) | Chebyshev tail for the sample mean. | `HDP.Chapter1.chebyshev_inequality` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
+| Section 2.4 | Replacing one observation can make a median lose at most one lower- and one upper-half rank witness. | `HDP.Chapter2.median_one_coordinate_robust` | [`Chapter2_ConcentrationOfIndependentSums.lean`](Chapter2_ConcentrationOfIndependentSums.lean) |
 | Theorem 2.4.1 | Median-of-means achieves a Gaussian tail assuming only finite variance. | `HDP.Chapter2.medianOfMeans_explicit` | [`Chapter2_ConcentrationOfIndependentSums.lean`](Chapter2_ConcentrationOfIndependentSums.lean) |
 | Proposition 2.5.1 | If expected degree is at least `C log n`, all Erdos--Renyi degrees lie within 10% of the mean with probability at least `.99`. | `HDP.Chapter2.dense_graphs_almost_regular_explicit` | [`Chapter2_ConcentrationOfIndependentSums.lean`](Chapter2_ConcentrationOfIndependentSums.lean) |
 | Remark 2.5.2 | Below `(1-epsilon) log n`, isolated vertices appear, so sparse random graphs are far from regular. | `HDP.Chapter1.exercise_1_9` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
