@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **605 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,442 theorems, 1,010 lemmas, and 797 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **606 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 60 / 99 / 61 |
+| Core declarations | 2,444 theorems, 1,012 lemmas, and 798 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -530,7 +530,8 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Remark 7.1.8 | Squared increments equal `Sigma(t,t)-2 Sigma(t,s)+Sigma(s,s)`; with a zero coordinate, increments recover covariance. | `HDP.processIncrement_sq_eq_covariance` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Definition 7.1.9 | A Gaussian process has jointly Gaussian restriction to every finite index set; equivalently every finite linear combination is Gaussian. | `HDP.Chapter7.isGaussianProcess_iff_finset` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Remark 7.1.10 | Mean and covariance determine a Gaussian process in law; with a zero coordinate, increments determine it too. | `HDP.Chapter7.finiteGaussianProcess_identDistrib_of_mean_covariance` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
-| Lemma 7.1.12 | Every centered Gaussian vector is equal in law to inner products of one standard Gaussian vector with deterministic points. | `HDP.Chapter7.gaussianVector_canonical_representation` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
+| Theorem 7.1.11 | The centered maximum of an arbitrary nonempty finite Gaussian process is sub-Gaussian, with `ψ₂` norm controlled by the largest marginal standard deviation. | `HDP.Chapter7.finiteGaussianProcess_concentration` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
+| Lemma 7.1.12 | Every finite Gaussian vector has an affine canonical representation in law; in the centered case it is a vector of inner products against deterministic points. | `HDP.Chapter7.finiteGaussianProcess_affine_representation`, `HDP.Chapter7.gaussianVector_canonical_representation` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Remark 7.2.1 | For arbitrary index sets, expected suprema are interpreted as suprema of finite-subset expected maxima. | `HDP.Chapter7.extendedExpectedSupremum` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Theorem 7.2.2 | Slepian: equal variances plus dominated increments imply stochastic and expected-max domination. | `HDP.Chapter7.slepianInequality` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Lemma 7.2.3 | Scalar Gaussian integration by parts: `E[X f(X)] = E[f'(X)]`. | `HDP.Chapter7.gaussianIntegrationByParts` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |

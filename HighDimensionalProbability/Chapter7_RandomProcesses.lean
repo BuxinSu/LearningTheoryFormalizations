@@ -43,7 +43,8 @@ import Mathlib.LinearAlgebra.AffineSpace.FiniteDimensional
 - §7.1 Random processes, covariance, increments, and Gaussian processes
   - Definition 7.1.1 and equation (7.1): processes and their canonical increments
   - Example 7.1.6: Brownian and random-walk `L²` increment metrics are square-root time
-  - Definitions 7.1.9, Theorem 7.1.11, and Lemma 7.1.12: finite Gaussian laws
+  - Theorem 7.1.11: concentration of an arbitrary finite Gaussian process maximum
+  - Definitions 7.1.9 and Lemma 7.1.12: finite Gaussian laws and affine canonical representation
 - §7.2 Gaussian comparison
   - Lemmas 7.2.3–7.2.5: Gaussian integration by parts and interpolation
   - Theorems 7.2.2, 7.2.8, and 7.2.9: Slepian, Sudakov–Fernique, and Gordon
@@ -968,7 +969,7 @@ Gaussian process satisfies the source's maximum-concentration estimate. By
 Lemma 7.1.12 every finite Gaussian process has such a representation.
 
 **Book Theorem 7.1.11.** -/
-theorem finiteGaussianProcess_concentration
+theorem finiteGaussianProcess_concentration_canonical
     {I : Type*} [Fintype I] [Nonempty I] {n : ℕ}
     (a : I → EuclideanSpace ℝ (Fin n)) (b : I → ℝ) :
     let M : EuclideanSpace ℝ (Fin n) → ℝ :=
@@ -3005,8 +3006,9 @@ lemma gaussianMeasureCovarianceMatrix_posSemidef
 **Lean implementation helper.** -/
 private lemma covarianceBilin_multivariateGaussian_gaussianMeasureCovarianceMatrix
     {I : Type*} [Fintype I] [DecidableEq I]
-    (ν : Measure (EuclideanSpace ℝ I)) [IsFiniteMeasure ν] :
-    covarianceBilin (multivariateGaussian 0 (gaussianMeasureCovarianceMatrix ν)) =
+    (ν : Measure (EuclideanSpace ℝ I)) [IsFiniteMeasure ν]
+    (m : EuclideanSpace ℝ I) :
+    covarianceBilin (multivariateGaussian m (gaussianMeasureCovarianceMatrix ν)) =
       covarianceBilin ν := by
   classical
   let b : Module.Basis I ℝ (EuclideanSpace ℝ I) :=
@@ -3040,7 +3042,22 @@ private lemma gaussianMeasure_eq_multivariateGaussian_covariance
   apply IsGaussian.ext
   · simpa using hmean
   · exact
-      (covarianceBilin_multivariateGaussian_gaussianMeasureCovarianceMatrix ν).symm
+      (covarianceBilin_multivariateGaussian_gaussianMeasureCovarianceMatrix ν 0).symm
+
+/-- A finite-dimensional Gaussian measure equals the multivariate Gaussian law
+with its actual mean and covariance matrix.
+
+**Lean implementation helper.** -/
+private lemma gaussianMeasure_eq_multivariateGaussian_mean_covariance
+    {I : Type*} [Fintype I] [DecidableEq I]
+    (ν : Measure (EuclideanSpace ℝ I)) [IsGaussian ν] :
+    ν = multivariateGaussian (∫ x, x ∂ν)
+      (gaussianMeasureCovarianceMatrix ν) := by
+  apply IsGaussian.ext
+  · exact integral_id_multivariateGaussian.symm
+  · exact
+      (covarianceBilin_multivariateGaussian_gaussianMeasureCovarianceMatrix ν
+        (∫ x, x ∂ν)).symm
 
 /-- The mean of the Euclidean process vector is the vector of coordinatewise means.
 
@@ -3058,6 +3075,251 @@ private lemma processEuclideanVector_integral
   simpa [V, processEuclideanVector] using
     (ContinuousLinearMap.integral_comp_comm
       (EuclideanSpace.proj i) hV.integrable).symm
+
+/-- The law of a finite Gaussian process vector is the multivariate Gaussian
+with its coordinatewise mean and covariance matrix.
+
+**Lean implementation helper.** -/
+lemma processEuclideanVector_law_eq_multivariateGaussian_mean_covariance
+    {I Ω : Type*} [Fintype I] [DecidableEq I] [MeasurableSpace Ω]
+    {μ : Measure Ω} {X : I → Ω → ℝ}
+    (hX : IsGaussianProcess X μ) :
+    Measure.map (processEuclideanVector X) μ =
+      multivariateGaussian
+        (WithLp.toLp 2 (fun i ↦ ∫ ω, X i ω ∂μ))
+        (gaussianMeasureCovarianceMatrix
+          (Measure.map (processEuclideanVector X) μ)) := by
+  let ν := Measure.map (processEuclideanVector X) μ
+  have hV := processEuclideanVector_hasGaussianLaw hX
+  haveI : IsGaussian ν := hV.isGaussian_map
+  change ν =
+    multivariateGaussian
+      (WithLp.toLp 2 (fun i ↦ ∫ ω, X i ω ∂μ))
+      (gaussianMeasureCovarianceMatrix ν)
+  calc
+    ν = multivariateGaussian (∫ x, x ∂ν)
+        (gaussianMeasureCovarianceMatrix ν) :=
+      gaussianMeasure_eq_multivariateGaussian_mean_covariance ν
+    _ = multivariateGaussian
+        (WithLp.toLp 2 (fun i ↦ ∫ ω, X i ω ∂μ))
+        (gaussianMeasureCovarianceMatrix ν) := by
+      rw [integral_map hV.aemeasurable (by fun_prop),
+        processEuclideanVector_integral hX]
+
+/-- Every finite Gaussian process is an affine canonical Gaussian process in
+law, with coefficient norms equal to the marginal standard deviations.
+
+**Book Lemma 7.1.12.** -/
+theorem finiteGaussianProcess_affine_representation
+    {n : ℕ} {Ω : Type*} [MeasurableSpace Ω]
+    {μ : Measure Ω} {X : Fin n → Ω → ℝ}
+    (hX : IsGaussianProcess X μ) :
+    ∃ (a : Fin n → EuclideanSpace ℝ (Fin n)) (b : Fin n → ℝ),
+      IdentDistrib (processEuclideanVector X)
+        (fun g ↦ WithLp.toLp 2
+          (fun i ↦ HDP.Chapter5.gaussianAffineFamily a b i g))
+        μ (stdGaussian (EuclideanSpace ℝ (Fin n))) ∧
+      ∀ i, ‖a i‖ = Real.sqrt Var[X i; μ] := by
+  classical
+  let V := processEuclideanVector X
+  let ν := Measure.map V μ
+  let S := gaussianMeasureCovarianceMatrix ν
+  let b : Fin n → ℝ := fun i ↦ ∫ ω, X i ω ∂μ
+  let a : Fin n → EuclideanSpace ℝ (Fin n) :=
+    canonicalCovariancePoint S
+  let Y : EuclideanSpace ℝ (Fin n) → EuclideanSpace ℝ (Fin n) :=
+    fun g ↦ WithLp.toLp 2
+      (fun i ↦ HDP.Chapter5.gaussianAffineFamily a b i g)
+  have hVg := processEuclideanVector_hasGaussianLaw hX
+  have hVlaw : HasLaw V (multivariateGaussian (WithLp.toLp 2 b) S) μ := by
+    refine ⟨hVg.aemeasurable, ?_⟩
+    simpa [V, ν, S, b] using
+      processEuclideanVector_law_eq_multivariateGaussian_mean_covariance hX
+  have hYeq :
+      Y = fun g ↦ WithLp.toLp 2 b +
+        Matrix.toEuclideanCLM (𝕜 := ℝ) (CFC.sqrt S) g := by
+    funext g
+    ext i
+    change b i + inner ℝ (canonicalCovariancePoint S i) g =
+      b i + canonicalCovarianceVector S g i
+    rw [canonicalCovarianceVector_apply]
+  have hYlaw : HasLaw Y (multivariateGaussian (WithLp.toLp 2 b) S)
+      (stdGaussian (EuclideanSpace ℝ (Fin n))) := by
+    refine ⟨hYeq ▸ (by fun_prop), ?_⟩
+    change
+      (stdGaussian (EuclideanSpace ℝ (Fin n))).map Y =
+        (stdGaussian (EuclideanSpace ℝ (Fin n))).map
+          (fun g ↦ WithLp.toLp 2 b +
+            Matrix.toEuclideanCLM (𝕜 := ℝ) (CFC.sqrt S) g)
+    rw [hYeq]
+  have hid : IdentDistrib V Y μ
+      (stdGaussian (EuclideanSpace ℝ (Fin n))) :=
+    hVlaw.identDistrib hYlaw
+  refine ⟨a, b, ?_, ?_⟩
+  · simpa [V, Y] using hid
+  · intro i
+    have hi := hid.comp (EuclideanSpace.proj i).measurable
+    have hvar : Var[X i; μ] =
+        Var[fun g ↦ HDP.Chapter5.gaussianAffineFamily a b i g;
+          stdGaussian (EuclideanSpace ℝ (Fin n))] := by
+      have hvariance := hi.variance_eq
+      change Var[X i; μ] =
+        Var[fun g ↦ HDP.Chapter5.gaussianAffineFamily a b i g;
+          stdGaussian (EuclideanSpace ℝ (Fin n))] at hvariance
+      exact hvariance
+    have hcanonical :
+        Var[fun g ↦ HDP.Chapter5.gaussianAffineFamily a b i g;
+          stdGaussian (EuclideanSpace ℝ (Fin n))] = ‖a i‖ ^ 2 := by
+      rw [show (fun g ↦ HDP.Chapter5.gaussianAffineFamily a b i g) =
+        fun g ↦ b i + canonicalGaussianProcess a i g by
+          funext g
+          rfl]
+      rw [variance_const_add
+          ((canonicalGaussianProcess_isGaussian a).aemeasurable i).aestronglyMeasurable,
+        canonicalGaussianProcess_variance]
+    rw [hcanonical] at hvar
+    rw [hvar, Real.sqrt_sq_eq_abs, abs_of_nonneg (norm_nonneg _)]
+
+/-- The largest marginal standard deviation of a nonempty finite process.
+
+**Lean implementation helper.** -/
+def finiteGaussianProcessStdDev
+    {I Ω : Type*} [Fintype I] [Nonempty I] [MeasurableSpace Ω]
+    (X : I → Ω → ℝ) (μ : Measure Ω) : ℝ :=
+  Finset.univ.sup' Finset.univ_nonempty
+    (fun i ↦ Real.sqrt Var[X i; μ])
+
+/-- The centered maximum of an arbitrary nonempty finite Gaussian process is
+sub-Gaussian, with `ψ₂` norm bounded by a universal constant times the largest
+marginal standard deviation.
+
+**Book Theorem 7.1.11.** -/
+theorem finiteGaussianProcess_concentration
+    {n : ℕ} [NeZero n] {Ω : Type*} [MeasurableSpace Ω]
+    {μ : Measure Ω} {X : Fin n → Ω → ℝ}
+    (hX : IsGaussianProcess X μ) :
+    let M : Ω → ℝ := HDP.Chapter5.finiteMaximum X
+    HDP.SubGaussian (fun ω ↦ M ω - ∫ η, M η ∂μ) μ ∧
+      HDP.psi2Norm (fun ω ↦ M ω - ∫ η, M η ∂μ) μ ≤
+        2 * Real.sqrt 5 * finiteGaussianProcessStdDev X μ := by
+  classical
+  let M : Ω → ℝ := HDP.Chapter5.finiteMaximum X
+  rcases finiteGaussianProcess_affine_representation hX with
+    ⟨a, b, hid, hnorm⟩
+  let maxVec : EuclideanSpace ℝ (Fin n) → ℝ :=
+    HDP.Chapter5.finiteMaximum
+      (fun i : Fin n ↦ fun x : EuclideanSpace ℝ (Fin n) ↦ x i)
+  let MC : EuclideanSpace ℝ (Fin n) → ℝ :=
+    HDP.Chapter5.finiteMaximum (HDP.Chapter5.gaussianAffineFamily a b)
+  have hmaxVec : Continuous maxVec := by
+    unfold maxVec HDP.Chapter5.finiteMaximum
+    exact Continuous.finset_sup'_apply Finset.univ_nonempty
+      (fun _ _ ↦ by fun_prop)
+  have hMC : Continuous MC := by
+    unfold MC HDP.Chapter5.finiteMaximum
+    exact Continuous.finset_sup'_apply Finset.univ_nonempty
+      (fun _ _ ↦ by
+        unfold HDP.Chapter5.gaussianAffineFamily
+        fun_prop)
+  have hidMaxVec := hid.comp hmaxVec.measurable
+  have hidMax :
+      IdentDistrib M
+        (fun g ↦ maxVec (WithLp.toLp 2
+          (fun i ↦ HDP.Chapter5.gaussianAffineFamily a b i g)))
+        μ (stdGaussian (EuclideanSpace ℝ (Fin n))) := by
+    convert hidMaxVec using 1 <;>
+      ext <;> rfl
+  have hToLp : HasLaw (WithLp.toLp 2)
+      (stdGaussian (EuclideanSpace ℝ (Fin n)))
+      (HDP.Chapter5.gaussianPiMeasure n) := by
+    refine ⟨(WithLp.measurable_toLp 2 (Fin n → ℝ)).aemeasurable, ?_⟩
+    exact map_pi_eq_stdGaussian
+  have hId : HasLaw (id : EuclideanSpace ℝ (Fin n) →
+      EuclideanSpace ℝ (Fin n))
+      (stdGaussian (EuclideanSpace ℝ (Fin n)))
+      (stdGaussian (EuclideanSpace ℝ (Fin n))) :=
+    HasLaw.id
+  have hidToLp := hToLp.identDistrib hId
+  have hidCanonicalVec := hidToLp.comp hMC.measurable
+  have hidCanonical :
+      IdentDistrib (fun z : Fin n → ℝ ↦ MC (WithLp.toLp 2 z))
+        MC
+        (HDP.Chapter5.gaussianPiMeasure n)
+        (stdGaussian (EuclideanSpace ℝ (Fin n))) := by
+    convert hidCanonicalVec using 1 <;>
+      ext <;> rfl
+  have hidMaxCanonical :
+      IdentDistrib M MC μ
+        (stdGaussian (EuclideanSpace ℝ (Fin n))) := by
+    convert hidMax using 1 <;>
+      ext <;> rfl
+  have hidRawCanonical :
+      IdentDistrib M (fun z : Fin n → ℝ ↦ MC (WithLp.toLp 2 z))
+        μ (HDP.Chapter5.gaussianPiMeasure n) :=
+    hidMaxCanonical.trans hidCanonical.symm
+  have hmean :
+      (∫ ω, M ω ∂μ) =
+        ∫ z, MC (WithLp.toLp 2 z)
+          ∂HDP.Chapter5.gaussianPiMeasure n :=
+    hidRawCanonical.integral_eq
+  have hidCentered :
+      IdentDistrib (fun ω ↦ M ω - ∫ η, M η ∂μ)
+        (HDP.Chapter5.gaussianCentered MC)
+        μ (HDP.Chapter5.gaussianPiMeasure n) := by
+    have h := hidRawCanonical.sub_const (∫ η, M η ∂μ)
+    have heq :
+        (fun z : Fin n → ℝ ↦
+          MC (WithLp.toLp 2 z) - ∫ η, M η ∂μ) =
+          HDP.Chapter5.gaussianCentered MC := by
+      funext z
+      simp only [HDP.Chapter5.gaussianCentered]
+      rw [hmean]
+    rw [← heq]
+    exact h
+  have hcanonical :=
+    finiteGaussianProcess_concentration_canonical a b
+  change HDP.SubGaussian (HDP.Chapter5.gaussianCentered MC)
+      (HDP.Chapter5.gaussianPiMeasure n) ∧
+    HDP.psi2Norm (HDP.Chapter5.gaussianCentered MC)
+      (HDP.Chapter5.gaussianPiMeasure n) ≤
+        2 * Real.sqrt 5 * HDP.Chapter5.gaussianMaximumScale a at hcanonical
+  have hscale :
+      HDP.Chapter5.gaussianMaximumScale a =
+        finiteGaussianProcessStdDev X μ := by
+    unfold HDP.Chapter5.gaussianMaximumScale
+      finiteGaussianProcessStdDev
+    simp_rw [hnorm]
+  have hRawNorm :
+      HDP.psi2Norm (fun ω ↦ M ω - ∫ η, M η ∂μ) μ =
+        HDP.psi2Norm (HDP.Chapter5.gaussianCentered MC)
+          (HDP.Chapter5.gaussianPiMeasure n) := by
+    let ρ := Measure.map (HDP.Chapter5.gaussianCentered MC)
+      (HDP.Chapter5.gaussianPiMeasure n)
+    have hC : HasLaw (HDP.Chapter5.gaussianCentered MC) ρ
+        (HDP.Chapter5.gaussianPiMeasure n) :=
+      ⟨hidCentered.aemeasurable_snd, rfl⟩
+    have hR : HasLaw (fun ω ↦ M ω - ∫ η, M η ∂μ) ρ μ :=
+      hidCentered.symm.hasLaw hC
+    rw [HDP.psi2Norm_eq_of_hasLaw hR,
+      HDP.psi2Norm_eq_of_hasLaw hC]
+  have hRawSub :
+      HDP.SubGaussian (fun ω ↦ M ω - ∫ η, M η ∂μ) μ := by
+    rcases hcanonical.1 with ⟨K, hK, hψ⟩
+    refine ⟨K, hK, ?_⟩
+    let ρ := Measure.map (HDP.Chapter5.gaussianCentered MC)
+      (HDP.Chapter5.gaussianPiMeasure n)
+    have hC : HasLaw (HDP.Chapter5.gaussianCentered MC) ρ
+        (HDP.Chapter5.gaussianPiMeasure n) :=
+      ⟨hidCentered.aemeasurable_snd, rfl⟩
+    have hR : HasLaw (fun ω ↦ M ω - ∫ η, M η ∂μ) ρ μ :=
+      hidCentered.symm.hasLaw hC
+    rw [HDP.psi2MGF_eq_of_hasLaw hR]
+    rw [HDP.psi2MGF_eq_of_hasLaw hC] at hψ
+    exact hψ
+  dsimp only
+  refine ⟨hRawSub, ?_⟩
+  rw [hRawNorm, ← hscale]
+  exact hcanonical.2
 
 /-- A centered finite Gaussian process vector has the multivariate Gaussian law determined by its covariance matrix.
 
