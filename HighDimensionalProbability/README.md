@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **592 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 61 / 88 / 66 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,409 theorems, 1,006 lemmas, and 784 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **594 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 63 / 88 / 66 / 39 / 59 / 99 / 61 |
+| Core declarations | 2,411 theorems, 1,006 lemmas, and 785 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -99,7 +99,7 @@ When a result is already available in Mathlib, the development uses or specializ
 
 ## Book → Lean correspondence
 
-This table records **592 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
+This table records **594 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
 
 ### Appetizer — Using Probability to Cover a Set
 
@@ -292,6 +292,8 @@ This table records **592 verified results** from the second-edition PDF. Each ro
 | (3.34) | Gaussian hyperplane rounding labels each vertex by `sign <X_i,g>`. | `HDP.Chapter3.gaussianRoundingLabel` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Lemma 3.6.5 | Grothendieck sign/arcsine identity for correlated Gaussian signs. | `HDP.Chapter3.grothendieckSignArcsin` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.35) | `2 arccos(t)/pi >= .878(1-t)` on `[-1,1]`. | `HDP.Chapter3.goemansWilliamson_pairwise_bound` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Definition 3.7.1 | An order-`k` tensor is a real array indexed by a product of `k` independently sized finite axes. | `HDP.TensorSpace` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| (3.36) | The canonical tensor inner product is the sum of entrywise products over every multi-index. | `HDP.tensorInner_eq_inner` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Example 3.7.3 | Rank-one tensor power `u^{tensor k}`. | `HDP.tensorPowerFeature` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Lemma 3.7.4 | Inner products of tensor powers satisfy `<u^k,v^k>=<u,v>^k`. | `HDP.inner_tensorPowerFeature` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Example 3.7.5 | A polynomial with nonnegative coefficients has a Hilbert feature map. | `HDP.inner_analyticFeature_of_nonneg` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |

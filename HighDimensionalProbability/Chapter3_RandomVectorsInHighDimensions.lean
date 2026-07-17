@@ -83,9 +83,11 @@ import Mathlib.MeasureTheory.Integral.Prod
   - The rounding identity and approximation ratio. **Book Lemma 3.6.5;
     Equation (3.35).**
 - §3.7 Kernel trick and tightening of Grothendieck
-  - Positive-semidefinite kernels and feature maps. **Book Definition 3.7.1;
-    Examples 3.7.2–3.7.3; Lemmas 3.7.4 and 3.7.7.**
-  - Polynomial and Gaussian kernel embeddings. **Book Equations (3.36)–(3.38).**
+  - General product-axis tensor spaces and their canonical inner product.
+    **Book Definition 3.7.1; Equation (3.36).**
+  - Positive-semidefinite kernels and feature maps. **Book Examples 3.7.2–3.7.3;
+    Lemmas 3.7.4 and 3.7.7.**
+  - Polynomial and Gaussian kernel embeddings. **Book Equations (3.37)–(3.38).**
 -/
 
 /-! ## Material formerly in `01_NormConcentration.lean` -/
@@ -10557,10 +10559,45 @@ namespace HDP
 
 variable {ι : Type*} [Fintype ι]
 
+/-- The Hilbert space of real order-`k` tensors whose `r`th coordinate axis
+has index type `axis r`. Thus an element is the multidimensional array
+`(a_{i₁...iₖ})` with independently sized finite axes.
+
+**Book Definition 3.7.1.** -/
+abbrev TensorSpace {k : ℕ} (axis : Fin k → Type*)
+    [∀ r, Fintype (axis r)] :=
+  EuclideanSpace ℝ (∀ r, axis r)
+
+/-- The canonical tensor inner product, written as the sum of entrywise
+products over every multi-index.
+
+**Book Equation (3.36).** -/
+noncomputable def tensorInner {k : ℕ} {axis : Fin k → Type*}
+    [∀ r, Fintype (axis r)]
+    (A B : TensorSpace axis) : ℝ :=
+  ∑ p, A p * B p
+
+/-- The coordinate formula (3.36) is exactly the ambient Euclidean inner
+product on the general product-axis tensor space.
+
+**Book Definition 3.7.1; Equation (3.36).** -/
+theorem tensorInner_eq_inner {k : ℕ} {axis : Fin k → Type*}
+    [∀ r, Fintype (axis r)]
+    (A B : TensorSpace axis) :
+    tensorInner A B = inner ℝ A B := by
+  simp [tensorInner, PiLp.inner_apply, mul_comm]
+
 /-- The concrete finite-dimensional Hilbert space containing `k`-fold pure
 tensors over `EuclideanSpace ℝ ι`. -/
 abbrev TensorPowerSpace (ι : Type*) [Fintype ι] (k : ℕ) :=
   EuclideanSpace ℝ (Fin k → ι)
+
+/-- The equal-axis tensor-power space used below is the specialization of
+Definition 3.7.1 in which all `k` axes have the same index type.
+
+**Book Definition 3.7.1; Example 3.7.3.** -/
+theorem tensorPowerSpace_eq_tensorSpace (k : ℕ) :
+    TensorPowerSpace ι k = TensorSpace (fun _ : Fin k ↦ ι) := rfl
 
 /-- The `k`-fold pure tensor `u^{⊗k}`, in coordinates.
 
