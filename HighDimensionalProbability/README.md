@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **596 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 65 / 88 / 66 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,417 theorems, 1,006 lemmas, and 786 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **601 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 66 / 39 / 59 / 99 / 61 |
+| Core declarations | 2,428 theorems, 1,006 lemmas, and 790 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -290,7 +290,11 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Definition 3.6.1 | Cut size and maximum cut of a finite graph. | `HDP.SimpleGraph.cutSize` | [`Prelude/SimpleGraph.lean`](Prelude/SimpleGraph.lean) |
 | Definition 3.6.2 | Adjacency matrix of a finite graph. | `SimpleGraph.adjMatrix` | `.lake/packages/mathlib/Mathlib/Combinatorics/SimpleGraph/AdjMatrix.lean` |
 | (3.31) | For the `±1` labels determined by a vertex subset, the adjacency-matrix objective is exactly the number of crossing edges. | `HDP.Chapter3.graphCutObjective_eq_cutValue` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| (3.32) | `maxcut(G)` is attained and is exactly the maximum of the adjacency-matrix sign objective. | `HDP.Chapter3.graphMaxCut_eq_max_cutMatrixObjective` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Proposition 3.6.3 | A uniformly random cut has expected cardinality at least one half of `maxcut(G)`. | `HDP.Chapter3.randomGraphCut_halfApproximation` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| (3.33) | The graph cut SDP attains its maximum, defining `sdp(G)`, and relaxes `maxcut(G)`. | `HDP.Chapter3.graphSDPValue`; `HDP.Chapter3.graphMaxCut_le_graphSDPValue` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.34) | Gaussian hyperplane rounding labels each vertex by `sign <X_i,g>`. | `HDP.Chapter3.gaussianRoundingLabel` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Theorem 3.6.4 | Gaussian hyperplane rounding of an SDP optimizer produces an actual graph cut whose expectation is at least `439/500` times both `sdp(G)` and `maxcut(G)`. | `HDP.Chapter3.goemans_williamson_graph_guarantee` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Lemma 3.6.5 | Grothendieck sign/arcsine identity for correlated Gaussian signs. | `HDP.Chapter3.grothendieckSignArcsin` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.35) | `2 arccos(t)/pi >= .878(1-t)` on `[-1,1]`. | `HDP.Chapter3.goemansWilliamson_pairwise_bound` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Definition 3.7.1 | An order-`k` tensor is a real array indexed by a product of `k` independently sized finite axes. | `HDP.TensorSpace` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |

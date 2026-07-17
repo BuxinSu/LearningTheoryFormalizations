@@ -78,8 +78,11 @@ import Mathlib.MeasureTheory.Integral.Prod
     Equations (3.22)–(3.29); Proposition 3.5.6.**
   - Grothendieck's inequality. **Book Theorem 3.5.7.**
 - §3.6 Maximum cut for graphs
-  - Cut objectives and their semidefinite relaxation. **Book Definitions 3.6.1–3.6.2;
-    Proposition 3.6.3; Theorem 3.6.4.**
+  - Graph cut cardinalities, their exact matrix maxima, and the attained
+    semidefinite relaxation. **Book Definitions 3.6.1–3.6.2;
+    Equations (3.31)–(3.33); Proposition 3.6.3.**
+  - Actual-cut Gaussian rounding and the `0.878` guarantee against both
+    `sdp(G)` and `maxcut(G)`. **Book Theorem 3.6.4.**
   - The rounding identity and approximation ratio. **Book Lemma 3.6.5;
     Equation (3.35).**
 - §3.7 Kernel trick and tightening of Grothendieck
@@ -10335,6 +10338,111 @@ theorem graphCutObjective_eq_cutValue
             rw [Finset.mul_sum]
     _ = (H.edgeFinset.card : ℝ) := by rw [hsum]; ring
 
+/-- The cut SDP objective is continuous in a finite family of vectors.
+
+**Lean implementation helper for Book Equation (3.33).** -/
+theorem continuous_sdpCutObjective
+    {ι κ : Type*} [Fintype ι] [Fintype κ]
+    (A : Matrix ι ι ℝ) :
+    Continuous (HDP.sdpCutObjective (κ := κ) A) := by
+  unfold HDP.sdpCutObjective
+  fun_prop
+
+/-- The finite-dimensional maximum in the cut SDP (3.33) is attained.
+
+**Book Equation (3.33).** -/
+theorem sdpCutObjective_attains
+    {ι κ : Type*} [Fintype ι] [Fintype κ] [Nonempty κ]
+    (A : Matrix ι ι ℝ) :
+    ∃ X : ι → EuclideanSpace ℝ κ,
+      (∀ i, ‖X i‖ = 1) ∧
+      ∀ Y : ι → EuclideanSpace ℝ κ, (∀ i, ‖Y i‖ = 1) →
+        HDP.sdpCutObjective A Y ≤ HDP.sdpCutObjective A X := by
+  classical
+  let i0 : κ := Classical.choice inferInstance
+  let e : EuclideanSpace ℝ κ := EuclideanSpace.single i0 1
+  have he : ‖e‖ = 1 := by simp [e]
+  have hne : (HDP.unitVectorAssignments ι κ).Nonempty :=
+    ⟨fun _ => e, fun _ => he⟩
+  obtain ⟨X, hX, hmax⟩ :=
+    (HDP.isCompact_unitVectorAssignments ι κ).exists_isMaxOn hne
+      (continuous_sdpCutObjective A).continuousOn
+  exact ⟨X, hX, fun Y hY => hmax hY⟩
+
+/-- A chosen optimizer for the graph semidefinite program (3.33). -/
+noncomputable def graphSDPSolution
+    {V : Type*} [Fintype V] [Nonempty V]
+    (G : SimpleGraph V) [DecidableRel G.Adj] :
+    V → EuclideanSpace ℝ V :=
+  Classical.choose (sdpCutObjective_attains (G.adjMatrix ℝ))
+
+/-- The graph SDP value `sdp(G)` from (3.33), evaluated at a chosen optimizer. -/
+noncomputable def graphSDPValue
+    {V : Type*} [Fintype V] [Nonempty V]
+    (G : SimpleGraph V) [DecidableRel G.Adj] : ℝ :=
+  HDP.sdpCutObjective (G.adjMatrix ℝ) (graphSDPSolution G)
+
+/-- The chosen graph SDP solution consists of unit vectors.
+
+**Book Equation (3.33).** -/
+theorem graphSDPSolution_unit
+    {V : Type*} [Fintype V] [Nonempty V]
+    (G : SimpleGraph V) [DecidableRel G.Adj] :
+    ∀ i, ‖graphSDPSolution G i‖ = 1 :=
+  (Classical.choose_spec
+    (sdpCutObjective_attains (G.adjMatrix ℝ))).1
+
+/-- `graphSDPValue G` is the maximum in (3.33).
+
+**Book Equation (3.33).** -/
+theorem sdpCutObjective_le_graphSDPValue
+    {V : Type*} [Fintype V] [Nonempty V]
+    (G : SimpleGraph V) [DecidableRel G.Adj]
+    (Y : V → EuclideanSpace ℝ V) (hY : ∀ i, ‖Y i‖ = 1) :
+    HDP.sdpCutObjective (G.adjMatrix ℝ) Y ≤ graphSDPValue G := by
+  exact (Classical.choose_spec
+    (sdpCutObjective_attains (G.adjMatrix ℝ))).2 Y hY
+
+/-- A finite graph has a cut attaining `maxcut(G)`.
+
+**Book Equation (3.32).** -/
+theorem exists_maxCut_finset
+    {V : Type*} [Fintype V] (G : SimpleGraph V) :
+    ∃ s : Finset V,
+      HDP.SimpleGraph.cutValue G (s : Set V) =
+        HDP.SimpleGraph.maxCutValue G := by
+  classical
+  obtain ⟨s, hs, hsup⟩ := Finset.exists_mem_eq_sup'
+    (H := Finset.univ_nonempty (α := Finset V))
+    (fun t : Finset V => HDP.SimpleGraph.cutSize G (t : Set V))
+  rw [Finset.sup'_eq_sup] at hsup
+  refine ⟨s, ?_⟩
+  unfold HDP.SimpleGraph.cutValue HDP.SimpleGraph.maxCutValue
+  simpa [HDP.SimpleGraph.maxCutSize] using
+    (congrArg (fun n : ℕ => (n : ℝ)) hsup).symm
+
+/-- The graph maximum cut is exactly the maximum of the adjacency-matrix
+sign objective in (3.32).
+
+**Book Equation (3.32).** -/
+theorem graphMaxCut_eq_max_cutMatrixObjective
+    {V : Type*} [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj] :
+    ∃ s : Finset V,
+      HDP.cutMatrixObjective (G.adjMatrix ℝ)
+          (graphCutLabel (s : Set V)) =
+        HDP.SimpleGraph.maxCutValue G ∧
+      ∀ t : Finset V,
+        HDP.cutMatrixObjective (G.adjMatrix ℝ)
+            (graphCutLabel (t : Set V)) ≤
+          HDP.cutMatrixObjective (G.adjMatrix ℝ)
+            (graphCutLabel (s : Set V)) := by
+  obtain ⟨s, hs⟩ := exists_maxCut_finset G
+  refine ⟨s, ?_, ?_⟩
+  · rw [graphCutObjective_eq_cutValue, hs]
+  · intro t
+    rw [graphCutObjective_eq_cutValue, graphCutObjective_eq_cutValue, hs]
+    exact HDP.SimpleGraph.cutValue_le_maxCutValue G t
+
 /-- The plus-or-minus sign map `pmSign` is Borel measurable.
 
 **Lean implementation helper.** -/
@@ -10402,6 +10510,35 @@ theorem cut_embedding_preserves_objective
       HDP.cutMatrixObjective A x := by
   simp [HDP.sdpCutObjective, HDP.cutMatrixObjective,
     inner_smul_left, inner_smul_right, he, mul_comm]
+
+/-- The graph SDP (3.33) is a relaxation of maximum cut (3.32).
+
+**Book Equations (3.32)–(3.33).** -/
+theorem graphMaxCut_le_graphSDPValue
+    {V : Type*} [Fintype V] [Nonempty V]
+    (G : SimpleGraph V) [DecidableRel G.Adj] :
+    HDP.SimpleGraph.maxCutValue G ≤ graphSDPValue G := by
+  classical
+  obtain ⟨s, hs⟩ := exists_maxCut_finset G
+  let i0 : V := Classical.choice inferInstance
+  let e : EuclideanSpace ℝ V := EuclideanSpace.single i0 1
+  have he : ‖e‖ = 1 := by simp [e]
+  let x : V → ℝ := graphCutLabel (s : Set V)
+  have hx : ∀ i, |x i| = 1 := by
+    intro i
+    by_cases hi : i ∈ s <;> simp [x, graphCutLabel, hi]
+  have hunit : ∀ i, ‖x i • e‖ = 1 := by
+    intro i
+    simp [norm_smul, he, hx i]
+  calc
+    HDP.SimpleGraph.maxCutValue G =
+        HDP.cutMatrixObjective (G.adjMatrix ℝ) x := by
+          rw [graphCutObjective_eq_cutValue, hs]
+    _ = HDP.sdpCutObjective (G.adjMatrix ℝ) (fun i => x i • e) :=
+      (cut_embedding_preserves_objective
+        (G.adjMatrix ℝ) x e he).symm
+    _ ≤ graphSDPValue G :=
+      sdpCutObjective_le_graphSDPValue G _ hunit
 
 /-- A pointwise correlation bound transfers to the full nonnegative weighted
 cut objective. This is the linearity/order step in the proof of Theorem
@@ -10524,6 +10661,58 @@ theorem randomCut_halfApproximation
         rw [mul_comm, Finset.sum_mul]
   nlinarith
 
+/-- Independent Rademacher labels define a uniformly random graph cut whose
+expected cardinality is at least one half of `maxcut(G)`.
+
+**Book Proposition 3.6.3.** -/
+theorem randomGraphCut_halfApproximation
+    {Ω V : Type*} {mΩ : MeasurableSpace Ω} {μ : Measure Ω}
+    [IsProbabilityMeasure μ] [Fintype V]
+    (G : SimpleGraph V) [DecidableRel G.Adj]
+    (R : V → Ω → ℝ) (hR : ∀ i, HDP.IsRademacher (R i) μ)
+    (hindep : iIndepFun R μ) :
+    (1 / 2 : ℝ) * HDP.SimpleGraph.maxCutValue G ≤
+      ∫ ω, HDP.SimpleGraph.cutValue G {i | R i ω = 1} ∂μ := by
+  classical
+  obtain ⟨s, hs⟩ := exists_maxCut_finset G
+  let x : V → ℝ := graphCutLabel (s : Set V)
+  have hx : ∀ i, x i = 1 ∨ x i = -1 := by
+    intro i
+    by_cases hi : i ∈ s <;> simp [x, graphCutLabel, hi]
+  have hdiag : ∀ i, G.adjMatrix ℝ i i = 0 := by
+    intro i
+    simp [SimpleGraph.adjMatrix_apply]
+  have hnonneg : ∀ i j, 0 ≤ G.adjMatrix ℝ i j := by
+    intro i j
+    by_cases hij : G.Adj i j <;>
+      norm_num [SimpleGraph.adjMatrix_apply, hij]
+  have hmatrix := randomCut_halfApproximation
+    (G.adjMatrix ℝ) hnonneg hdiag R hR hindep x hx
+  have hlabels :
+      ∀ᵐ ω ∂μ, ∀ i,
+        graphCutLabel {j | R j ω = 1} i = R i ω := by
+    rw [ae_all_iff]
+    intro i
+    filter_upwards [(hR i).ae_mem] with ω hi
+    rcases hi with hi | hi
+    · simp [graphCutLabel, hi]
+    · have hne : R i ω ≠ 1 := by rw [hi]; norm_num
+      rw [graphCutLabel]
+      change (if R i ω = 1 then (1 : ℝ) else -1) = R i ω
+      rw [if_neg hne, hi]
+  have hcuts :
+      (fun ω => HDP.SimpleGraph.cutValue G {i | R i ω = 1}) =ᵐ[μ]
+        (fun ω => HDP.cutMatrixObjective (G.adjMatrix ℝ)
+          (fun i => R i ω)) := by
+    filter_upwards [hlabels] with ω hω
+    rw [← graphCutObjective_eq_cutValue]
+    congr 1
+    funext i
+    exact hω i
+  rw [graphCutObjective_eq_cutValue, hs] at hmatrix
+  rw [integral_congr_ae hcuts]
+  exact hmatrix
+
 /-- The expected cut objective after Gaussian hyperplane rounding. This is
 the integral form of the Grothendieck sign--arcsine identity, summed over all
 weighted pairs.
@@ -10600,6 +10789,78 @@ theorem goemans_williamson_expected_guarantee
       _ = 1 - (2 / Real.pi) * Real.arcsin (inner ℝ (X i) (X j)) := by
         rw [Real.arccos_eq_pi_div_two_sub_arcsin]
         field_simp
+
+/-- The actual graph cut produced by Gaussian hyperplane rounding. -/
+noncomputable def gaussianRoundedCutValue
+    {V : Type*} [Fintype V] (G : SimpleGraph V)
+    (X : V → EuclideanSpace ℝ V) (g : EuclideanSpace ℝ V) : ℝ :=
+  HDP.SimpleGraph.cutValue G
+    {i | HDP.hyperplaneLabel g (X i) = 1}
+
+/-- Gaussian hyperplane labels are precisely the labels of their associated
+vertex subset, so the rounded matrix objective is an actual graph cut.
+
+**Book Equations (3.31) and (3.34).** -/
+theorem gaussianRoundedCutValue_eq_objective
+    {V : Type*} [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj]
+    (X : V → EuclideanSpace ℝ V) (g : EuclideanSpace ℝ V) :
+    gaussianRoundedCutValue G X g =
+      HDP.cutMatrixObjective (G.adjMatrix ℝ)
+        (fun i => HDP.hyperplaneLabel g (X i)) := by
+  unfold gaussianRoundedCutValue
+  rw [← graphCutObjective_eq_cutValue]
+  congr 1
+  funext i
+  unfold HDP.hyperplaneLabel HDP.pmSign graphCutLabel
+  by_cases hi : 0 ≤ inner ℝ (X i) g
+  · rw [if_pos hi]
+    norm_num
+    exact hi
+  · rw [if_neg hi]
+    norm_num
+    exact lt_of_not_ge hi
+
+/-- Goemans--Williamson rounding of an optimizer of (3.33) produces an actual
+graph cut with expected value at least `439/500` times both `sdp(G)` and
+`maxcut(G)`. This is the exact rational formalization of the printed decimal
+`0.878`.
+
+**Book Theorem 3.6.4.** -/
+theorem goemans_williamson_graph_guarantee
+    {V : Type*} [Fintype V] [Nonempty V]
+    (G : SimpleGraph V) [DecidableRel G.Adj] :
+    (439 / 500 : ℝ) * graphSDPValue G ≤
+        ∫ g : EuclideanSpace ℝ V,
+          gaussianRoundedCutValue G (graphSDPSolution G) g
+            ∂stdGaussian (EuclideanSpace ℝ V) ∧
+      (439 / 500 : ℝ) * HDP.SimpleGraph.maxCutValue G ≤
+        ∫ g : EuclideanSpace ℝ V,
+          gaussianRoundedCutValue G (graphSDPSolution G) g
+            ∂stdGaussian (EuclideanSpace ℝ V) := by
+  classical
+  have hnonneg : ∀ i j, 0 ≤ G.adjMatrix ℝ i j := by
+    intro i j
+    by_cases hij : G.Adj i j <;>
+      norm_num [SimpleGraph.adjMatrix_apply, hij]
+  have hround := goemans_williamson_expected_guarantee
+    (G.adjMatrix ℝ) hnonneg (graphSDPSolution G)
+      (graphSDPSolution_unit G)
+  have hint :
+      (∫ g : EuclideanSpace ℝ V,
+          gaussianRoundedCutValue G (graphSDPSolution G) g
+            ∂stdGaussian (EuclideanSpace ℝ V)) =
+        ∫ g : EuclideanSpace ℝ V,
+          HDP.cutMatrixObjective (G.adjMatrix ℝ)
+            (fun i => HDP.hyperplaneLabel g (graphSDPSolution G i))
+            ∂stdGaussian (EuclideanSpace ℝ V) := by
+    apply integral_congr_ae
+    exact ae_of_all _ fun g =>
+      gaussianRoundedCutValue_eq_objective G (graphSDPSolution G) g
+  change (439 / 500 : ℝ) * graphSDPValue G ≤ _ at hround
+  rw [hint]
+  refine ⟨hround, ?_⟩
+  exact (mul_le_mul_of_nonneg_left
+    (graphMaxCut_le_graphSDPValue G) (by norm_num)).trans hround
 
 end HDP.Chapter3
 
