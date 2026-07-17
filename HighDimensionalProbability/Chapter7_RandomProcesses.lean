@@ -53,6 +53,7 @@ import Mathlib.LinearAlgebra.AffineSpace.FiniteDimensional
   - Definitions 7.5.1, 7.5.4, 7.5.9, and 7.5.12
   - Width calculus, examples, nuclear norm, Gaussian complexity, and effective dimension
 - §7.6 Random projections of sets
+  - Equation (7.21): projection of the unit ball onto a nonzero subspace has diameter two
   - Theorem 7.6.1 and its Gaussian and finite-set variants
 
 The detailed entries below identify the chapter's key source-facing definitions and
@@ -17025,6 +17026,32 @@ theorem exercise_7_25_gaussianProjection_expectedDiameter :
           C * (gaussianWidth T +
             Real.sqrt m * finiteEuclideanDiameter T) := by
   exact gaussianProjection_expectedDiameter_aux
+
+/-- Orthogonally projecting the Euclidean unit ball onto a nonzero subspace
+produces exactly the unit ball of that subspace, so its diameter remains two.
+
+**Book Equation (7.21).** -/
+theorem orthogonalProjection_unitBall_diam
+    {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    {K : Submodule ℝ E} [K.HasOrthogonalProjection] (hK : K ≠ ⊥) :
+    Metric.diam (K.orthogonalProjectionOnto ''
+      Metric.closedBall (0 : E) 1) = 2 := by
+  letI : Nontrivial K := Submodule.nontrivial_iff_ne_bot.mpr hK
+  have himage :
+      K.orthogonalProjectionOnto '' Metric.closedBall (0 : E) 1 =
+        Metric.closedBall (0 : K) 1 := by
+    ext z
+    constructor
+    · rintro ⟨x, hx, rfl⟩
+      simp only [Metric.mem_closedBall, dist_zero_right] at hx ⊢
+      exact (K.norm_orthogonalProjectionOnto_apply_le x).trans hx
+    · intro hz
+      refine ⟨(z : E), ?_, ?_⟩
+      · simpa [Metric.mem_closedBall, dist_zero_right] using hz
+      · simp
+  rw [himage]
+  simpa using
+    (Metric.diam_closedBall_eq (0 : K) (by norm_num : (0 : ℝ) ≤ 1))
 
 /-- Random-projection diameter has a width-dominated/diameter-dominated phase transition. The elementary sum-to-maximum comparison behind
 the phase-transition formulation.

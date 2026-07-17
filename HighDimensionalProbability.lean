@@ -1,3 +1,4 @@
+import HighDimensionalProbability.Chapter0_Appetizer
 import HighDimensionalProbability.Chapter1_AnalysisAndProbabilityRefresher
 import HighDimensionalProbability.Chapter2_ConcentrationOfIndependentSums
 import HighDimensionalProbability.Chapter3_RandomVectorsInHighDimensions
@@ -7,3 +8,14 @@ import HighDimensionalProbability.Chapter6_QuadraticFormsSymmetrizationContracti
 import HighDimensionalProbability.Chapter7_RandomProcesses
 import HighDimensionalProbability.Chapter8_Chaining
 import HighDimensionalProbability.Chapter9_DeviationsOfRandomMatricesOnSets
+
+/-!
+# High-Dimensional Probability
+
+Root module for the formalization of Roman Vershynin's *High-Dimensional
+Probability* (second edition), the Appetizer and Chapters 1 through 9.
+
+This publication imports only the consolidated Appetizer and Chapter 1–9
+modules. Non-load-bearing exercise directories and the unresolved appendix
+subtree are intentionally excluded.
+-/

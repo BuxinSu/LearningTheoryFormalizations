@@ -29,6 +29,7 @@ Both project READMEs include chapter-by-chapter Book → Lean correspondence tab
 │   └── README.md
 ├── HighDimensionalProbability/
 │   ├── Prelude/
+│   ├── Chapter0_Appetizer.lean
 │   ├── Chapter1_AnalysisAndProbabilityRefresher.lean
 │   ├── …
 │   ├── Chapter9_DeviationsOfRandomMatricesOnSets.lean
@@ -94,7 +95,7 @@ The Vershynin development formalizes the main arc of high-dimensional probabilit
 - covering numbers, Dudley bounds, and generic chaining;
 - matrix deviation and applications to embeddings, recovery, and restricted isometries.
 
-Its published correspondence table records 566 verified source results. See the [project README](HighDimensionalProbability/README.md) for the complete chapter-by-chapter map.
+Its published correspondence table records 584 verified source results. See the [project README](HighDimensionalProbability/README.md) for the complete chapter-by-chapter map.
 
 ## Namespace conventions
 

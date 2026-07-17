@@ -10,10 +10,10 @@ The development covers the main mathematical arc of the book: concentration of i
 |---|---|
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
-| Main development | shared `Prelude` and 9 chapter modules |
-| Book → Lean correspondence | **566 verified results** |
-| Chapter distribution | Appetizer: 2; Chapters 1–9: 49 / 57 / 56 / 85 / 64 / 39 / 57 / 97 / 60 |
-| Core declarations | 2,371 theorems, 1,005 lemmas, and 776 definitions across the shared foundations and consolidated chapter modules |
+| Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
+| Book → Lean correspondence | **584 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 58 / 86 / 66 / 39 / 58 / 99 / 60 |
+| Core declarations | 2,394 theorems, 1,005 lemmas, and 776 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -43,6 +43,7 @@ To check one chapter directly:
 | Area | Final module | Main topics |
 |---|---|---|
 | Shared foundations | [`Prelude/`](Prelude/) | Probability, Orlicz norms, random vectors and matrices, Gaussian matrices, metric entropy, random graphs, and matrix concentration |
+| Appetizer | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) | Empirical method, approximate Carathéodory, polytope covers, and volume bounds |
 | Chapter 1 | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) | Convexity, norms, probability, expectation, concentration basics, and classical limit laws |
 | Chapter 2 | [`Chapter2_ConcentrationOfIndependentSums.lean`](Chapter2_ConcentrationOfIndependentSums.lean) | Gaussian tails, subgaussian and subexponential variables, Hoeffding and Bernstein inequalities |
 | Chapter 3 | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) | Concentration of random vectors, isotropy, covariance estimation, and high-dimensional geometry |
@@ -100,6 +101,20 @@ When a result is already available in Mathlib, the development uses or specializ
 
 This table records **566 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
 
+### Appetizer — Using Probability to Cover a Set
+
+| Book source | Result | Lean declaration | Final module |
+|---|---|---|---|
+| (0.1), convex-hull definition | A point of `conv(T)` is a finite convex combination of points of `T`. | `Finset.convexHull_eq` | `.lake/packages/mathlib/Mathlib/Analysis/Convex/Caratheodory.lean` |
+| Theorem 0.0.1 | Caratheodory: in `R^n`, at most `n+1` points suffice in a convex combination. | `convexHull_eq_union` | `.lake/packages/mathlib/Mathlib/Analysis/Convex/Caratheodory.lean` |
+| Theorem 0.0.2 | Equal averages of `k` points approximate every point of a convex hull within `1/sqrt(k)`. | `HDP.Chapter0.approximate_caratheodory` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+| Corollary 0.0.3 | An `N`-vertex polytope in the unit ball has an internal `N^k`-point cover of radius `1/sqrt(k)`. | `HDP.Chapter0.exists_polytope_cover` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+| (0.3) | The cover yields `Vol(P) <= N^k k^(-n/2) Vol(B)` in division-free form. | `HDP.Chapter0.polytope_volume_equation_0_3` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+| (0.4) | The positive continuous critical point is `n/(2 log N)`, uniquely. | `HDP.Chapter0.polytope_volume_optimizer_equation_0_4` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+| Exercise 0.1(a) | Vector bias--variance identity. | `HDP.Chapter0.integral_norm_sub_mean_sq` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+| Exercise 0.2 | A vector mean minimizes expected squared Euclidean distance. | `HDP.Chapter0.integral_norm_sub_mean_sq_le` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+| Exercise 0.3 | Independent centered random vectors satisfy the Pythagorean second-moment identity. | `HDP.Chapter0.integral_norm_sum_sq_of_iIndepFun` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+
 ### Chapter 1 — A Quick Refresher on Analysis and Probability
 
 | Book source | Result | Lean declaration | Final module |
@@ -139,6 +154,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | CDF/tail identity | `P(X>t)=1-F_X(t)`. | `HDP.Chapter1.bookCDF` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | Lemma 1.6.1 | Integrated-tail formula `E X = integral P(X>t) dt` for nonnegative `X`. | `HDP.Chapter1.integrated_tail_formula_lintegral` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | Proposition 1.6.2 | Markov inequality. | `HDP.Chapter1.markov_inequality` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
+| §1.6, Markov optimality | The Markov tail bound is attained by a two-point law when only the mean is prescribed. | `HDP.Chapter1.markov_inequality_is_sharp` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | Corollary 1.6.3 | Chebyshev inequality. | `HDP.Chapter1.chebyshev_inequality` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | (1.23) | The variance of an i.i.d. sample mean is `sigma^2/n`. | `HDP.Chapter1.variance_sample_mean` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | Theorem 1.7.1 | Strong law of large numbers. | `HDP.Chapter1.strong_law_of_large_numbers` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
@@ -158,6 +174,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 
 | Book source | Result | Lean declaration | Final module |
 |---|---|---|---|
+| Question 2.1.1; (2.1) | Chebyshev gives `P(S_N >= 3N/4) <= 4/N` for independent fair coins. | `HDP.Chapter2.fair_coin_chebyshev_equation_2_1` | [`Chapter2_ConcentrationOfIndependentSums.lean`](Chapter2_ConcentrationOfIndependentSums.lean) |
 | Proposition 2.1.2; (2.3) | Two-sided Mills-style Gaussian tail bounds, including `P(g>=t) <= phi(t)/t`. | `HDP.Chapter2.gaussian_tail_upper` | [`Chapter2_ConcentrationOfIndependentSums.lean`](Chapter2_ConcentrationOfIndependentSums.lean) |
 | (2.4) | Heuristic probability of at least `3N/4` heads is about `exp(-N/8)/sqrt(2pi)`. | `HDP.Chapter2.remark_2_2_4` | [`Chapter2_ConcentrationOfIndependentSums.lean`](Chapter2_ConcentrationOfIndependentSums.lean) |
 | Central-binomial paragraph | `P(S_N=N/2)` is asymptotic to `sqrt(2/(pi N))`, showing the `N^-1/2` CLT-error scale is unavoidable. | `HDP.Chapter2.centralBinomialProbability_asymptotic` | [`Chapter2_ConcentrationOfIndependentSums.lean`](Chapter2_ConcentrationOfIndependentSums.lean) |
@@ -226,6 +243,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | (3.4) | For nonnegative `z`, `abs(z-1)>=delta` implies `abs(z^2-1)>=max(delta,delta^2)`. | `HDP.Chapter3.max_le_abs_sq_sub_one` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Remark 3.1.2 | Thin-shell phenomenon and bounded radial variance follow from norm concentration. | `HDP.Chapter3.thinShellVariance_subGaussian` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.5) | Covariance-matrix entries are coordinate covariances. | `HDP.Chapter3.covarianceMatrix_apply` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Section 3.2, covariance prose | `Cov(X)=E[XX^T]-(EX)(EX)^T`, and zero mean reduces covariance to the second moment. | `HDP.Chapter3.covarianceMatrix_eq_secondMoment_sub_mean` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Proposition 3.2.1(a); (3.6) | `E <X,v>^2 = v^T Sigma v` for the second-moment matrix. | `HDP.Chapter3.secondMoment_inner_sq` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Proposition 3.2.1(b) | `E ‖X‖_2^2 = tr(Sigma)`. | `HDP.Chapter3.secondMoment_norm_sq_eq_trace` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Proposition 3.2.1(c) | For independent copies `X,Y`, `E<X,Y>^2` is the squared Frobenius norm of the second-moment matrix. | `HDP.Chapter3.secondMoment_independent_copy_inner_sq` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
@@ -236,6 +254,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | (3.11) | Standard multivariate Gaussian density is proportional to `exp(-‖z‖^2/2)`. | `HDP.Chapter3.exercise_3_15_standardDensity` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Proposition 3.3.1 | Standard Gaussian law is rotation invariant. | `HDP.Chapter3.standardGaussian_rotation_invariant` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Corollary 3.3.2 | Every standard-Gaussian marginal `<Z,v>` is Gaussian with variance `‖v‖^2`. | `HDP.Chapter3.standardGaussian_inner_hasLaw` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Corollary 3.3.3 | A finite sum of independent real Gaussians is Gaussian, with summed mean and summed variance. | `HDP.Chapter3.sum_independent_gaussians_parameters` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Proposition 3.3.5; (3.12) | Gaussian law is uniquely determined by mean and covariance, including singular covariance. | `HDP.Chapter3.gaussianLaw_unique` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Proposition 3.3.6; (3.13) | Invertible-covariance multivariate Gaussian density formula. | `HDP.Chapter3.multivariateGaussianDensity` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Corollary 3.3.7 | Jointly Gaussian variables are independent iff uncorrelated. | `ProbabilityTheory.HasGaussianLaw.iIndepFun_of_covariance_strongDual` | `.lake/packages/mathlib/Mathlib/Probability/Distributions/Gaussian/HasGaussianLaw/Independence.lean` |
@@ -282,6 +301,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Book source | Result | Lean declaration | Final module |
 |---|---|---|---|
 | Theorem 4.1.1 | Every real rectangular matrix has an SVD with nonnegative decreasing singular values and orthonormal left/right families. | `HDP.Chapter4.exists_singularValueDecomposition` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
+| Example 4.1.5 | If `U` has orthonormal columns, then `UU^T` is the rank-`k` orthogonal projection onto their span: it is symmetric and idempotent, fixes the column space, and kills its orthogonal complement. | `HDP.Chapter4.orthogonalProjection_eq_mul_transpose` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Remark 4.1.2 | An SVD stretches right singular directions by their singular values and rotates them to left singular directions. | `HDP.Chapter4.RealSVD.apply_right` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Remark 4.1.4 | Left/right singular vectors diagonalize `AA^T`/`A^TA`, and singular values are square roots of both Gram spectra. | `HDP.Chapter4.gram_apply_rightSingularVector` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Theorem 4.1.6 | Courant--Fischer max--min and min--max formulas for ordered eigenvalues. | `HDP.Chapter4.courantFischer` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
@@ -371,6 +391,8 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 
 | Book source | Result | Lean declaration | Final module |
 |---|---|---|---|
+| Definition 5.1.1 | The Lipschitz seminorm is the least valid Lipschitz constant (or `∞` when none exists). | `HDP.Chapter5.lipschitzSeminorm`; `HDP.Chapter5.lipschitzSeminorm_le_iff` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
+| Example 5.1.2 | Linear functionals, matrices, and the norm map have their advertised sharp Lipschitz constants. | `HDP.Chapter5.example_5_1_2a`; `HDP.Chapter5.example_5_1_2b`; `HDP.Chapter5.example_5_1_2c` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Theorem 5.1.3 | Every Lipschitz function on the radius-`sqrt n` sphere has dimension-free subgaussian concentration about its mean. | `HDP.Chapter5.sphere_lipschitz_concentration` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Lemma 5.1.6 | Any set occupying at least half the sphere has exponentially large metric blow-ups. | `HDP.Chapter5.blowUp_of_centered_concentration` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Remark 5.1.7 | Even exponentially small sets blow up to large measure after a modest enlargement. | `HDP.Chapter5.exercise_5_3a_exponentially_small_blowUp` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
@@ -534,6 +556,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Eq. (7.17) | Ball/sphere width equals `E ‖g‖` and is `sqrt n` up to constants. | `HDP.Chapter7.euclideanBallGaussianWidth` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Eq. (7.18) | Cube width is `sqrt(2/pi)n`. | `HDP.Chapter7.cubeGaussianWidth_eq_source` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Eq. (7.20) | Johnson--Lindenstrauss projection scales diameter by `sqrt(m/n)`. | `HDP.Chapter5.randomProjection_rms` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
+| Eq. (7.21) | Orthogonal projection of the unit ball onto a nonzero subspace has diameter two. | `HDP.Chapter7.orthogonalProjection_unitBall_diam` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Eq. (7.22) | A quarter-net reduces projected diameter to finitely many support values. | `HDP.Chapter7.randomProjection_expectedDiameter_upper` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Eq. (7.23) | Fixed-direction projected support is a spherical/Gaussian support variable. | `HDP.Chapter7.randomProjection_expectedDiameter_upper` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Eq. (7.24) | Union-bound tail over the projection net. | `HDP.Chapter7.randomProjection_expectedDiameter_upper` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
@@ -547,6 +570,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Book source | Result | Lean declaration | Final module |
 |---|---|---|---|
 | Definition 8.1.1 | A process has subgaussian increments when every increment has `psi2` norm at most `K` times the index distance. | `HDP.HasSubGaussianIncrementsWith` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
+| Section 8.1 after Example 8.1.2 | Every process with subgaussian increments is tautologically subgaussian for its `psi2` increment metric. | `HDP.hasSubGaussianIncrementsWith_psi2Metric` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Theorem 8.1.3 | Dudley bounds the expected supremum of a centered subgaussian-increment process by the entropy integral. | `HDP.Chapter8.dudleyIntegralInequality_coveringNumber` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Theorem 8.1.4 | Discrete Dudley bounds the expected supremum by a dyadic entropy sum. | `HDP.Chapter8.discreteDudleyInequality_coveringNumber` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Remark 8.1.5 | Dudley also bounds anchored and pairwise suprema of increments without centering. | `HDP.Chapter8.dudleySupremumOfIncrements` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
@@ -558,6 +582,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Remark 8.2.1 | Monte Carlo sample-mean expected absolute error is at most standard deviation divided by `sqrt n`. | `HDP.Chapter8.theorem_8_2_1_monteCarlo_expected_error` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Remark 8.2.2 | The Monte Carlo rate is dimension-free. | `HDP.Chapter8.remark_8_2_2_dimension_free_monteCarlo` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Theorem 8.2.3 | Uniform law of large numbers for all `L`-Lipschitz functions on `[0,1]`, at rate `L/sqrt n`. | `HDP.Chapter8.theorem_8_2_3_lipschitz_uniform_lln_general` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
+| Remark 8.2.4 | One sample realizes the uniform error bound simultaneously for the full class of `L`-Lipschitz functions. | `HDP.Chapter8.remark_8_2_4_exists_good_lipschitz_sample` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Definition 8.2.5 | The empirical process is the centered normalized sample average indexed by a function class. | `HDP.Chapter8.empiricalProcessValue` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Definition 8.3.1 | VC dimension is the largest size of a shattered subset, with an infinite case. | `HDP.BooleanClass.VCDimLE` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Example 8.3.2 | Indicators of real intervals have VC dimension two. | `HDP.Chapter8.example_8_3_2_real_closed_intervals` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |

@@ -28,6 +28,7 @@ import Mathlib.Probability.Distributions.Exponential
 ## Contents
 
 - §2.1 Why concentration inequalities?
+  - The fair-coin Chebyshev estimate. **Book Question 2.1.1; Equation (2.1).**
   - Gaussian tail estimates. **Book Proposition 2.1.2; Remark 2.1.3;
     Equations (2.2)–(2.4).**
   - Gaussian moments and their asymptotic scale. **Book Theorem 2.1.4.**
@@ -1214,6 +1215,46 @@ theorem hoeffding_rademacher_two_sided [IsProbabilityMeasure μ] {N : ℕ}
     _ = 2 * Real.exp (-t^2 / (2 * ∑ i, (a i)^2)) := by ring
 
 /-! ## Book Remark 2.2.4: the probability of ¾N heads -/
+
+/-- The elementary Chebyshev estimate posed in Question 2.1.1 and displayed as
+Book (2.1): for `N > 0` independent fair coin tosses,
+`P{S_N ≥ 3N/4} ≤ 4/N`.
+
+**Book Question 2.1.1, equation (2.1).** -/
+theorem fair_coin_chebyshev_equation_2_1 [IsProbabilityMeasure μ]
+    {N : ℕ} (hN : 0 < N) {X : Fin N → Ω → ℝ}
+    (hX : ∀ i, HDP.IsBernoulli (X i) ⟨1 / 2, by norm_num, by norm_num⟩ μ)
+    (hindep : iIndepFun X μ) :
+    μ.real {ω | (3 / 4 : ℝ) * N ≤ ∑ i, X i ω} ≤ 4 / N := by
+  let S : Ω → ℝ := ∑ i, X i
+  have hS2 : MemLp S 2 μ :=
+    memLp_finsetSum' Finset.univ (fun i _ ↦ (hX i).memLp 2)
+  have hmean : ∫ ω, S ω ∂μ = (N : ℝ) / 2 := by
+    dsimp [S]
+    simp only [Finset.sum_apply]
+    rw [integral_finsetSum Finset.univ
+      (fun i _ ↦ ((hX i).memLp 1).integrable le_rfl)]
+    simp [(hX · |>.integral_eq)]
+    ring
+  have hvar : Var[S; μ] = (N : ℝ) / 4 := by
+    simp only [S]
+    rw [HDP.Chapter1.binomial_variance hX hindep]
+    norm_num
+    ring
+  have ht : (0 : ℝ) < (N : ℝ) / 4 := by positivity
+  have hcheb := HDP.Chapter1.chebyshev_inequality hS2 ht
+  rw [hmean, hvar] at hcheb
+  calc
+    μ.real {ω | (3 / 4 : ℝ) * N ≤ ∑ i, X i ω}
+        ≤ μ.real {ω | (N : ℝ) / 4 ≤ |S ω - (N : ℝ) / 2|} := by
+          refine measureReal_mono ?_ (measure_ne_top μ _)
+          intro ω hω
+          simp only [Set.mem_setOf_eq] at hω ⊢
+          have hω' : (3 / 4 : ℝ) * N ≤ S ω := by simpa [S] using hω
+          have hd : (N : ℝ) / 4 ≤ S ω - (N : ℝ) / 2 := by linarith
+          exact hd.trans (le_abs_self _)
+    _ ≤ ((N : ℝ) / 4) / ((N : ℝ) / 4) ^ 2 := hcheb
+    _ = 4 / N := by field_simp
 
 /-- Remark 2.2.4 (implicit claim): if `X ∼ Ber(1/2)` then `2X − 1` is
 Rademacher. Implicit source claim ("Note that if `Y ∼ Ber(1/2)`, then `2Y−1` is
