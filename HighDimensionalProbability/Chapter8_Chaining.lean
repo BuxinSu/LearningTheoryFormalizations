@@ -4827,6 +4827,219 @@ def euclideanSetGaussianWidth {n : ℕ}
     (T : Set (EuclideanSpace ℝ (Fin n))) : ℝ :=
   (euclideanSetGaussianWidthENN T).toReal
 
+/-- Translation of an arbitrary Euclidean set.
+
+**Lean implementation helper.** -/
+def translateEuclideanSet {n : ℕ}
+    (y : EuclideanSpace ℝ (Fin n))
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    Set (EuclideanSpace ℝ (Fin n)) :=
+  (fun x ↦ x + y) '' T
+
+/-- Every admissible finite subfamily is bounded by the authoritative
+arbitrary-set width envelope.
+
+**Lean implementation helper.** -/
+theorem finiteGaussianWidth_le_euclideanSetGaussianWidthENN
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (F : Finset (EuclideanSpace ℝ (Fin n)))
+    (hFT : (F : Set (EuclideanSpace ℝ (Fin n))) ⊆ T)
+    (hF : F.Nonempty) :
+    ENNReal.ofReal (HDP.Chapter7.gaussianWidth F) ≤
+      euclideanSetGaussianWidthENN T := by
+  exact le_iSup_of_le F <| le_iSup_of_le hFT <|
+    le_iSup_of_le hF le_rfl
+
+/-- Translation does not increase the arbitrary-set Gaussian-width
+envelope.
+
+**Book Proposition 7.5.2(b).** -/
+private theorem euclideanSetGaussianWidthENN_translate_le
+    {n : ℕ} (y : EuclideanSpace ℝ (Fin n))
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidthENN (translateEuclideanSet y T) ≤
+      euclideanSetGaussianWidthENN T := by
+  unfold euclideanSetGaussianWidthENN
+  apply iSup_le
+  intro F
+  apply iSup_le
+  intro hFT
+  apply iSup_le
+  intro hF
+  let G : Finset (EuclideanSpace ℝ (Fin n)) :=
+    F.image (fun x ↦ x - y)
+  have hG : G.Nonempty := hF.image _
+  have hGT : (G : Set (EuclideanSpace ℝ (Fin n))) ⊆ T := by
+    intro x hx
+    rcases Finset.mem_image.mp hx with ⟨z, hzF, rfl⟩
+    rcases hFT hzF with ⟨t, htT, htz⟩
+    have heq : z - y = t := by
+      simpa using congrArg (fun q ↦ q - y) htz.symm
+    rw [heq]
+    exact htT
+  have htranslate : HDP.Chapter7.translateFinset y G = F := by
+    ext z
+    constructor
+    · intro hz
+      rcases Finset.mem_image.mp hz with ⟨x, hxG, rfl⟩
+      rcases Finset.mem_image.mp hxG with ⟨w, hwF, rfl⟩
+      simpa using hwF
+    · intro hzF
+      apply Finset.mem_image.mpr
+      refine ⟨z - y, ?_, by simp⟩
+      exact Finset.mem_image.mpr ⟨z, hzF, rfl⟩
+  have hwidth :
+      HDP.Chapter7.gaussianWidth F =
+        HDP.Chapter7.gaussianWidth G := by
+    rw [← htranslate,
+      HDP.Chapter7.gaussianWidth_translate G hG y]
+  rw [hwidth]
+  exact finiteGaussianWidth_le_euclideanSetGaussianWidthENN G hGT hG
+
+/-- Arbitrary-set Gaussian width is invariant under translation.
+
+**Book Proposition 7.5.2(b).** -/
+theorem euclideanSetGaussianWidthENN_translate
+    {n : ℕ} (y : EuclideanSpace ℝ (Fin n))
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidthENN (translateEuclideanSet y T) =
+      euclideanSetGaussianWidthENN T := by
+  apply le_antisymm
+  · exact euclideanSetGaussianWidthENN_translate_le y T
+  · have hback :
+      translateEuclideanSet (-y) (translateEuclideanSet y T) = T := by
+      ext x
+      constructor
+      · rintro ⟨z, ⟨t, ht, rfl⟩, rfl⟩
+        simpa using ht
+      · intro hx
+        refine ⟨x + y, ⟨x, hx, rfl⟩, ?_⟩
+        simp
+    calc
+      euclideanSetGaussianWidthENN T =
+          euclideanSetGaussianWidthENN
+            (translateEuclideanSet (-y) (translateEuclideanSet y T)) :=
+        congrArg euclideanSetGaussianWidthENN hback.symm
+      _ ≤ euclideanSetGaussianWidthENN (translateEuclideanSet y T) :=
+        euclideanSetGaussianWidthENN_translate_le (-y)
+          (translateEuclideanSet y T)
+
+/-- Safe real arbitrary-set Gaussian width is translation invariant.
+
+**Book Proposition 7.5.2(b).** -/
+theorem euclideanSetGaussianWidth_translate
+    {n : ℕ} (y : EuclideanSpace ℝ (Fin n))
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidth (translateEuclideanSet y T) =
+      euclideanSetGaussianWidth T := by
+  rw [euclideanSetGaussianWidth,
+    euclideanSetGaussianWidthENN_translate, euclideanSetGaussianWidth]
+
+/-- Orthogonal image of an arbitrary Euclidean set.
+
+**Lean implementation helper.** -/
+def orthogonalImageEuclideanSet {n : ℕ}
+    (U : EuclideanSpace ℝ (Fin n) ≃ₗᵢ[ℝ]
+      EuclideanSpace ℝ (Fin n))
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    Set (EuclideanSpace ℝ (Fin n)) :=
+  U '' T
+
+/-- An orthogonal image does not increase the arbitrary-set Gaussian-width
+envelope.
+
+**Book Proposition 7.5.2(b).** -/
+private theorem euclideanSetGaussianWidthENN_orthogonalImage_le
+    {n : ℕ}
+    (U : EuclideanSpace ℝ (Fin n) ≃ₗᵢ[ℝ]
+      EuclideanSpace ℝ (Fin n))
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidthENN (orthogonalImageEuclideanSet U T) ≤
+      euclideanSetGaussianWidthENN T := by
+  unfold euclideanSetGaussianWidthENN
+  apply iSup_le
+  intro F
+  apply iSup_le
+  intro hFT
+  apply iSup_le
+  intro hF
+  let G : Finset (EuclideanSpace ℝ (Fin n)) :=
+    F.image U.symm
+  have hG : G.Nonempty := hF.image _
+  have hGT : (G : Set (EuclideanSpace ℝ (Fin n))) ⊆ T := by
+    intro x hx
+    rcases Finset.mem_image.mp hx with ⟨z, hzF, rfl⟩
+    rcases hFT hzF with ⟨t, htT, htz⟩
+    have heq : U.symm z = t := by
+      simpa [orthogonalImageEuclideanSet] using
+        congrArg U.symm htz.symm
+    rw [heq]
+    exact htT
+  have himage : HDP.Chapter7.orthogonalImageFinset U G = F := by
+    ext z
+    constructor
+    · intro hz
+      rcases Finset.mem_image.mp hz with ⟨x, hxG, rfl⟩
+      rcases Finset.mem_image.mp hxG with ⟨w, hwF, rfl⟩
+      simpa using hwF
+    · intro hzF
+      apply Finset.mem_image.mpr
+      refine ⟨U.symm z, ?_, by simp⟩
+      exact Finset.mem_image.mpr ⟨z, hzF, rfl⟩
+  have hwidth :
+      HDP.Chapter7.gaussianWidth F =
+        HDP.Chapter7.gaussianWidth G := by
+    rw [← himage,
+      HDP.Chapter7.gaussianWidth_orthogonalImage U G hG]
+  rw [hwidth]
+  exact finiteGaussianWidth_le_euclideanSetGaussianWidthENN G hGT hG
+
+/-- Arbitrary-set Gaussian width is invariant under orthogonal maps.
+
+**Book Proposition 7.5.2(b).** -/
+theorem euclideanSetGaussianWidthENN_orthogonalImage
+    {n : ℕ}
+    (U : EuclideanSpace ℝ (Fin n) ≃ₗᵢ[ℝ]
+      EuclideanSpace ℝ (Fin n))
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidthENN (orthogonalImageEuclideanSet U T) =
+      euclideanSetGaussianWidthENN T := by
+  apply le_antisymm
+  · exact euclideanSetGaussianWidthENN_orthogonalImage_le U T
+  · have hback :
+      orthogonalImageEuclideanSet U.symm
+        (orthogonalImageEuclideanSet U T) = T := by
+      ext x
+      constructor
+      · rintro ⟨z, ⟨t, ht, rfl⟩, rfl⟩
+        simpa using ht
+      · intro hx
+        refine ⟨U x, ⟨x, hx, rfl⟩, by simp⟩
+    calc
+      euclideanSetGaussianWidthENN T =
+          euclideanSetGaussianWidthENN
+            (orthogonalImageEuclideanSet U.symm
+              (orthogonalImageEuclideanSet U T)) :=
+        congrArg euclideanSetGaussianWidthENN hback.symm
+      _ ≤ euclideanSetGaussianWidthENN
+          (orthogonalImageEuclideanSet U T) :=
+        euclideanSetGaussianWidthENN_orthogonalImage_le U.symm
+          (orthogonalImageEuclideanSet U T)
+
+/-- Safe real arbitrary-set Gaussian width is orthogonally invariant.
+
+**Book Proposition 7.5.2(b).** -/
+theorem euclideanSetGaussianWidth_orthogonalImage
+    {n : ℕ}
+    (U : EuclideanSpace ℝ (Fin n) ≃ₗᵢ[ℝ]
+      EuclideanSpace ℝ (Fin n))
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidth (orthogonalImageEuclideanSet U T) =
+      euclideanSetGaussianWidth T := by
+  rw [euclideanSetGaussianWidth,
+    euclideanSetGaussianWidthENN_orthogonalImage,
+    euclideanSetGaussianWidth]
+
 /-- Shows that the real-valued finite Euclidean Dudley functional is nonnegative.
 
 **Lean implementation helper.** -/
@@ -4889,6 +5102,73 @@ theorem euclideanSetGaussianWidthENN_ne_top
     (ENNReal.mul_ne_top ENNReal.ofReal_ne_top
       (euclideanSetDudleyFunctionalENN_ne_top hTne hTb))
     (dudleyInequalityEuclidean_arbitrarySet_ENN hTb)
+
+/-- The authoritative arbitrary-set Gaussian width is finite exactly for
+bounded sets.
+
+**Book Proposition 7.5.2(a).** -/
+theorem euclideanSetGaussianWidthENN_eq_top_iff_not_isBounded
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))} :
+    euclideanSetGaussianWidthENN T = ⊤ ↔ ¬ Bornology.IsBounded T := by
+  constructor
+  · intro htop hTb
+    by_cases hTne : T.Nonempty
+    · exact (euclideanSetGaussianWidthENN_ne_top hTne hTb) htop
+    · have hTempty : T = ∅ := Set.not_nonempty_iff_eq_empty.mp hTne
+      subst T
+      simp [euclideanSetGaussianWidthENN] at htop
+  · intro hTb
+    apply ENNReal.eq_top_of_forall_nnreal_le
+    intro r
+    let c : ℝ := 1 / Real.sqrt (2 * Real.pi)
+    have hc : 0 < c := by
+      unfold c
+      positivity
+    have hunbounded :
+        ¬ ∀ ⦃x⦄, x ∈ T → ∀ ⦃y⦄, y ∈ T →
+          dist x y ≤ (r : ℝ) / c + 1 := by
+      intro h
+      exact hTb (Metric.isBounded_iff.2 ⟨(r : ℝ) / c + 1, h⟩)
+    push Not at hunbounded
+    obtain ⟨x, hx, y, hy, hxy⟩ := hunbounded
+    let F : Finset (EuclideanSpace ℝ (Fin n)) := {x, y}
+    have hFne : F.Nonempty := by simp [F]
+    have hFT : (F : Set (EuclideanSpace ℝ (Fin n))) ⊆ T := by
+      intro z hz
+      simp only [F, Finset.coe_insert, Finset.coe_singleton,
+        Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+      rcases hz with rfl | rfl
+      · exact hx
+      · exact hy
+    have hpair :
+        c * ‖x - y‖ ≤ HDP.Chapter7.gaussianWidth F := by
+      exact HDP.Chapter7.gaussianWidth_pairwise_diameter_lower
+        F hFne (by simp [F]) (by simp [F])
+    have hrwidth : (r : ℝ) ≤ HDP.Chapter7.gaussianWidth F := by
+      have hdist : (r : ℝ) < c * dist x y := by
+        have hcpos : 0 < c := hc
+        have := hxy
+        field_simp [ne_of_gt hc] at this ⊢
+        nlinarith
+      rw [dist_eq_norm] at hdist
+      exact hdist.le.trans hpair
+    have hrENN :
+        (r : ℝ≥0∞) ≤ ENNReal.ofReal (HDP.Chapter7.gaussianWidth F) := by
+      rw [← ENNReal.ofReal_coe_nnreal,
+        ENNReal.ofReal_le_ofReal_iff (HDP.Chapter7.gaussianWidth_nonneg F hFne)]
+      exact hrwidth
+    exact hrENN.trans <|
+      le_iSup_of_le F <| le_iSup_of_le hFT <| le_iSup_of_le hFne le_rfl
+
+/-- Real-valued formulation: the safe Gaussian-width wrapper is backed by a
+finite extended value exactly when the set is bounded.
+
+**Book Proposition 7.5.2(a).** -/
+theorem euclideanSetGaussianWidthENN_ne_top_iff_isBounded
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))} :
+    euclideanSetGaussianWidthENN T ≠ ⊤ ↔ Bornology.IsBounded T := by
+  rw [ne_eq, euclideanSetGaussianWidthENN_eq_top_iff_not_isBounded]
+  tauto
 
 /-- Arbitrary bounded Euclidean-set Gaussian width is bounded by its Dudley entropy integral. Arbitrary bounded Euclidean set, safe real form.
 Both sides are converted from their authoritative extended values only after
