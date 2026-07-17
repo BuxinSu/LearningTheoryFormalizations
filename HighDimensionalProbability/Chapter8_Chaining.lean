@@ -37,12 +37,14 @@ import HighDimensionalProbability.Chapter3_RandomVectorsInHighDimensions
 ## Contents
 
 - §8.1 Subgaussian increments and Dudley chaining
-  - Definition 8.1.1 and Theorems 8.1.3–8.1.4: integral and discrete Dudley bounds
+  - Definition 8.1.1, the `ψ₂` increment metric, and Theorems 8.1.3–8.1.4:
+    integral and discrete Dudley bounds
   - Theorem 8.1.8: the Euclidean entropy-integral specialization
 - §8.2 Empirical processes
   - Equations (8.18)–(8.20) and Remarks 8.2.1–8.2.2: Monte Carlo convergence and error
   - Equations (8.21)–(8.26), Theorem 8.2.3, and Definition 8.2.5: measurable
     Lipschitz empirical suprema, empirical processes, and empirical measures
+  - Remark 8.2.4: one sample realizes the bound for the full Lipschitz class
   - Exercises 8.9 and 8.11: Lipschitz nets and empirical symmetrization
 - §8.3 VC dimension and uniform laws
   - Definition 8.3.1, Lemmas 8.3.7 and 8.3.9, and Theorem 8.3.13
@@ -117,6 +119,27 @@ theorem HasSubGaussianIncrementsWith.mono_constant
     HasSubGaussianIncrementsWith X μ d L := by
   refine ⟨h.1.trans hKL, fun s t => ⟨(h.2 s t).1, ?_⟩⟩
   exact (h.2 s t).2.trans (mul_le_mul_of_nonneg_right hKL (hd s t))
+
+/-- Any process whose increments are subgaussian has subgaussian increments
+with constant one when the index distance is defined to be the increment's
+`ψ₂` norm. This is the tautological metric observation following Example 8.1.2.
+
+**Book Section 8.1, after Example 8.1.2.** -/
+theorem hasSubGaussianIncrementsWith_psi2Metric
+    (X : RandomProcess T Ω)
+    (hX : ∀ s t, SubGaussian (fun ω ↦ X t ω - X s ω) μ) :
+    HasSubGaussianIncrementsWith X μ
+      (fun t s ↦ psi2Norm (fun ω ↦ X t ω - X s ω) μ) 1 := by
+  refine ⟨zero_le_one, fun s t ↦ ⟨hX s t, ?_⟩⟩
+  simp
+
+/-- Existential-constant form of the `ψ₂` increment-metric observation. -/
+theorem hasSubGaussianIncrements_psi2Metric
+    (X : RandomProcess T Ω)
+    (hX : ∀ s t, SubGaussian (fun ω ↦ X t ω - X s ω) μ) :
+    HasSubGaussianIncrements X μ
+      (fun t s ↦ psi2Norm (fun ω ↦ X t ω - X s ω) μ) :=
+  (hasSubGaussianIncrementsWith_psi2Metric X hX).toHasSubGaussianIncrements
 
 /-! ## Example 8.1.2: Gaussian processes -/
 
@@ -9530,6 +9553,40 @@ theorem theorem_8_2_3_lipschitz_uniform_lln_general
     _ ≤ (2 * (L : ℝ)) * (1 / Real.sqrt n) :=
       mul_le_mul_of_nonneg_left hnormalized (by positivity)
     _ = 2 * (L : ℝ) / Real.sqrt n := by ring
+
+/-- A single sample realizes the uniform bound from Theorem 8.2.3
+simultaneously for the full (generally infinite) class of `L`-Lipschitz
+functions on `[0,1]`.
+
+**Book Remark 8.2.4.** -/
+theorem remark_8_2_4_exists_good_lipschitz_sample
+    [OpensMeasurableSpace UnitInterval] [IsProbabilityMeasure P]
+    [IsProbabilityMeasure ν] {L : ℝ≥0} (hL : 0 < L)
+    {n : ℕ} (hn : 0 < n)
+    (X : Fin n → Ω → UnitInterval) (hXm : ∀ i, Measurable (X i))
+    (hLaw : ∀ i, IdentDistrib (X i) (id : UnitInterval → UnitInterval) P ν)
+    (hindep : Set.Pairwise Set.univ fun i j => IndepFun (X i) (X j) P) :
+    ∃ ω, unitIntervalLipschitzEmpiricalSup L ν (fun i => X i ω) <
+      4 * (L : ℝ) / Real.sqrt n := by
+  let Z : Ω → ℝ := fun ω =>
+    unitIntervalLipschitzEmpiricalSup L ν (fun i => X i ω)
+  have hZint : Integrable Z P :=
+    integrable_unitIntervalLipschitzEmpiricalSup hn L X hXm
+  have hZ0 : ∀ ω, 0 ≤ Z ω := by
+    intro ω
+    change 0 ≤ unitIntervalLipschitzEmpiricalSup L ν (fun i => X i ω)
+    rw [unitIntervalLipschitzEmpiricalSup_eq_mul_anchored_of_pos hL hn]
+    exact mul_nonneg L.coe_nonneg
+      (anchoredLipschitzEmpiricalSup_nonneg hn _)
+  have hmean : ∫ ω, Z ω ∂P ≤ 2 * (L : ℝ) / Real.sqrt n :=
+    theorem_8_2_3_lipschitz_uniform_lln_general L hn X hXm hLaw hindep
+  have hB : 0 < 2 * (L : ℝ) / Real.sqrt n := by
+    have hnR : (0 : ℝ) < n := by exact_mod_cast hn
+    positivity
+  obtain ⟨ω, hω⟩ := exists_lt_two_mul_of_integral_le hZint hZ0 hB hmean
+  refine ⟨ω, ?_⟩
+  change unitIntervalLipschitzEmpiricalSup L ν (fun i => X i ω) < _ at hω
+  convert hω using 1 <;> ring
 
 end
 

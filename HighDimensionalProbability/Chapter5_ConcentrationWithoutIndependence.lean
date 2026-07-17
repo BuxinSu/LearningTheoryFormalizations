@@ -36,8 +36,9 @@ import Mathlib.Analysis.InnerProductSpace.JointEigenspace
 ## Contents
 
 - §5.1 Concentration of Lipschitz functions on the sphere — spherical concentration
-  (Theorem 5.1.3), Euclidean and spherical isoperimetry (Theorems 5.1.4--5.1.5),
-  and metric blow-up (Lemma 5.1.6)
+  (Theorem 5.1.3), sharp elementary Lipschitz constants (Example 5.1.2),
+  Euclidean and spherical isoperimetry (Theorems 5.1.4--5.1.5), and metric
+  blow-up (Lemma 5.1.6)
 - §5.2 Concentration on other metric-measure spaces — Gaussian, Hamming-cube,
   permutation, Grassmannian, convex-body, and product-measure concentration
   (Theorems 5.2.2--5.2.12)
@@ -74,10 +75,54 @@ stated on an unbounded domain.  The corrected theorem below records the
 necessary uniform bound on the Fréchet derivative.
 -/
 
-open Set
-open scoped NNReal
+open Set InnerProductSpace
+open scoped ENNReal NNReal RealInnerProductSpace
 
 namespace HDP.Chapter5
+
+/-- The least Lipschitz constant of a map, valued in `ℝ≥0∞` so that a
+non-Lipschitz map has value `∞`. For a genuine Lipschitz map, the theorem
+`lipschitzSeminorm_le_iff` characterizes this as exactly the book's
+`‖f‖_Lip`.
+
+**Book Definition 5.1.1.** -/
+noncomputable def lipschitzSeminorm
+    {X Y : Type*} [MetricSpace X] [PseudoMetricSpace Y]
+    (f : X → Y) : ℝ≥0∞ :=
+  ⨆ x, ⨆ y, edist (f x) (f y) / edist x y
+
+/-- `lipschitzSeminorm f` is at most `K` exactly when `f` is
+`K`-Lipschitz; hence it is the least admissible Lipschitz constant.
+
+**Book Definition 5.1.1.** -/
+theorem lipschitzSeminorm_le_iff
+    {X Y : Type*} [MetricSpace X] [PseudoMetricSpace Y]
+    (f : X → Y) (K : ℝ≥0) :
+    lipschitzSeminorm f ≤ K ↔ LipschitzWith K f := by
+  constructor
+  · intro h x y
+    by_cases hxy : x = y
+    · simp [hxy]
+    have hratio :
+        edist (f x) (f y) / edist x y ≤ (K : ℝ≥0∞) := by
+      calc
+        _ ≤ ⨆ y, edist (f x) (f y) / edist x y := le_iSup _ y
+        _ ≤ ⨆ x, ⨆ y, edist (f x) (f y) / edist x y :=
+          le_iSup (fun z => ⨆ y, edist (f z) (f y) / edist z y) x
+        _ ≤ K := h
+    exact (ENNReal.div_le_iff_le_mul
+      (Or.inl (by simpa using hxy))
+      (Or.inl (edist_ne_top _ _))).mp hratio
+  · intro h
+    apply iSup_le
+    intro x
+    apply iSup_le
+    intro y
+    by_cases hxy : x = y
+    · simp [hxy]
+    exact (ENNReal.div_le_iff_le_mul
+      (Or.inl (by simpa using hxy))
+      (Or.inl (edist_ne_top _ _))).mpr (h x y)
 
 /-- Every Lipschitz map is uniformly continuous.
 
@@ -114,6 +159,78 @@ theorem exercise_5_1b_lipschitz_of_bounded_fderiv
     (hderiv : ∀ x, ‖fderiv ℝ f x‖₊ ≤ K) :
     LipschitzWith K f :=
   lipschitzWith_of_nnnorm_fderiv_le hf hderiv
+
+/-- A Euclidean linear functional has the norm of its representing vector as
+its sharp Lipschitz constant.
+
+**Book Example 5.1.2.** -/
+theorem example_5_1_2a {n : ℕ} (a : EuclideanSpace ℝ (Fin n)) :
+    LipschitzWith ⟨‖a‖, norm_nonneg a⟩
+      (fun x : EuclideanSpace ℝ (Fin n) => inner ℝ a x) ∧
+    (∀ K : ℝ≥0, LipschitzWith K
+        (fun x : EuclideanSpace ℝ (Fin n) => inner ℝ a x) →
+      ‖a‖ ≤ (K : ℝ)) := by
+  constructor
+  · apply LipschitzWith.of_dist_le_mul
+    intro x y
+    rw [Real.dist_eq, ← inner_sub_right]
+    exact abs_real_inner_le_norm a (x - y)
+  · intro K hK
+    by_cases ha : a = 0
+    · simp [ha]
+    let u := ‖a‖⁻¹ • a
+    have hu : ‖u‖ = 1 := by simp [u, norm_smul, ha]
+    have h := hK.dist_le_mul u 0
+    rw [dist_zero_right, hu, mul_one, Real.dist_eq] at h
+    have hcancel : ‖a‖⁻¹ * ‖a‖ ^ 2 = ‖a‖ := by field_simp
+    simpa [u, inner_smul_right, real_inner_self_eq_norm_sq, ha,
+      abs_of_nonneg (norm_nonneg a), hcancel] using h
+
+/-- An `m × n` matrix acts from `ℝⁿ` to `ℝᵐ`, and its Euclidean operator norm
+is its sharp Lipschitz constant.
+
+**Book Example 5.1.2.** -/
+theorem example_5_1_2b {m n : ℕ} (A : Matrix (Fin m) (Fin n) ℝ) :
+    LipschitzWith
+        (⟨HDP.matrixOpNorm A, HDP.matrixOpNorm_nonneg A⟩ : ℝ≥0)
+        A.toEuclideanLin ∧
+      (∀ K : ℝ≥0, LipschitzWith K A.toEuclideanLin →
+        HDP.matrixOpNorm A ≤ (K : ℝ)) := by
+  constructor
+  · apply LipschitzWith.of_dist_le_mul
+    intro x y
+    change ‖A.toEuclideanLin x - A.toEuclideanLin y‖ ≤
+      HDP.matrixOpNorm A * ‖x - y‖
+    rw [← map_sub]
+    simpa [HDP.matrixOpNorm, Matrix.l2_opNorm_def] using
+      A.toEuclideanLin.toContinuousLinearMap.le_opNorm (x - y)
+  · intro K hK
+    rw [HDP.matrixOpNorm, Matrix.l2_opNorm_def]
+    apply ContinuousLinearMap.opNorm_le_bound _ K.coe_nonneg
+    intro x
+    have h := hK.dist_le_mul x 0
+    simpa using h
+
+/-- The norm map is one-Lipschitz, and the constant is sharp on every
+nontrivial real normed space.
+
+**Book Example 5.1.2.** -/
+theorem example_5_1_2c {E : Type*} [NormedAddCommGroup E]
+    [NormedSpace ℝ E] [Nontrivial E] :
+    LipschitzWith 1 (fun x : E => ‖x‖) ∧
+      ∀ K : ℝ≥0, LipschitzWith K (fun x : E => ‖x‖) → (1 : ℝ) ≤ K := by
+  constructor
+  · apply LipschitzWith.of_dist_le_mul
+    intro x y
+    simpa only [NNReal.coe_one, one_mul, Real.dist_eq, dist_eq_norm,
+      Real.norm_eq_abs] using abs_norm_sub_norm_le x y
+  · intro K hK
+    obtain ⟨x : E, hx⟩ := exists_ne (0 : E)
+    have h := hK.dist_le_mul x 0
+    rw [Real.dist_eq, norm_zero, sub_zero,
+      abs_of_nonneg (norm_nonneg x), dist_zero_right] at h
+    have hxp : 0 < ‖x‖ := norm_pos_iff.mpr hx
+    nlinarith
 
 /-- Restricting a global Lipschitz map to a subtype preserves its constant. This is the basic
 bridge used for observables on spheres, cubes, and balls.

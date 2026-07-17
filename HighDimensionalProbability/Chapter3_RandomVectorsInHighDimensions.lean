@@ -55,7 +55,8 @@ import Mathlib.MeasureTheory.Integral.Prod
   - Independent subgaussian coordinates have a concentrated Euclidean norm.
     **Book Theorem 3.1.1; Equations (3.1)–(3.5).**
 - §3.2 Covariance matrices and principal component analysis
-  - Covariance identities and operator properties. **Book Proposition 3.2.1;
+  - Centered/uncentered covariance identities and operator properties.
+    **Book Section 3.2; Proposition 3.2.1;
     Equations (3.6)–(3.7); Proposition 3.2.2.**
   - Principal components and effective rank. **Book Corollary 3.2.3;
     Definition 3.2.5.**
@@ -1619,6 +1620,46 @@ theorem covarianceMatrix_transpose {n : ℕ}
   ext i j
   simp [HDP.covarianceMatrix, HDP.Chapter1.covMatrix,
     mul_comm]
+
+/-- The centered covariance is the uncentered second moment minus the outer
+product of the mean:
+`Cov(X) = E[XXᵀ] - (EX)(EX)ᵀ`.
+
+**Book Section 3.2, covariance prose following equation (3.5).** -/
+theorem covarianceMatrix_eq_secondMoment_sub_mean {n : ℕ}
+    [IsProbabilityMeasure μ] {X : Ω → EuclideanSpace ℝ (Fin n)}
+    (hX : MemLp X 2 μ) :
+    HDP.covarianceMatrix X μ = HDP.secondMomentMatrix X μ -
+      Matrix.vecMulVec (∫ ω, X ω ∂μ).ofLp (∫ ω, X ω ∂μ).ofLp := by
+  ext i j
+  have hi : MemLp (fun ω ↦ X ω i) 2 μ := by
+    simpa only [Function.comp_apply, EuclideanSpace.coe_proj] using
+      hX.continuousLinearMap_comp (EuclideanSpace.proj (𝕜 := ℝ) i)
+  have hj : MemLp (fun ω ↦ X ω j) 2 μ := by
+    simpa only [Function.comp_apply, EuclideanSpace.coe_proj] using
+      hX.continuousLinearMap_comp (EuclideanSpace.proj (𝕜 := ℝ) j)
+  have hmi := (EuclideanSpace.proj (𝕜 := ℝ) i).integral_comp_comm
+    (hX.integrable one_le_two)
+  have hmj := (EuclideanSpace.proj (𝕜 := ℝ) j).integral_comp_comm
+    (hX.integrable one_le_two)
+  have hmi' : (∫ ω, X ω i ∂μ) = (∫ ω, X ω ∂μ).ofLp i := by simpa using hmi
+  have hmj' : (∫ ω, X ω j ∂μ) = (∫ ω, X ω ∂μ).ofLp j := by simpa using hmj
+  rw [covarianceMatrix_apply, covariance_eq_sub hi hj]
+  simp only [HDP.secondMomentMatrix_apply, Matrix.sub_apply,
+    Matrix.vecMulVec_apply]
+  rw [← hmi', ← hmj']
+  rfl
+
+/-- For a mean-zero random vector, covariance and the uncentered second moment
+coincide.
+
+**Book Section 3.2, covariance prose.** -/
+theorem covarianceMatrix_eq_secondMoment_of_mean_zero {n : ℕ}
+    [IsProbabilityMeasure μ] {X : Ω → EuclideanSpace ℝ (Fin n)}
+    (hX : MemLp X 2 μ) (hmean : ∫ ω, X ω ∂μ = 0) :
+    HDP.covarianceMatrix X μ = HDP.secondMomentMatrix X μ := by
+  rw [covarianceMatrix_eq_secondMoment_sub_mean hX, hmean]
+  simp
 
 /-- A one-dimensional second moment is the
 quadratic form of the second-moment matrix.
@@ -4309,6 +4350,28 @@ theorem sum_independent_gaussians_hasGaussianLaw
     (h_indep : iIndepFun X P) :
     HasGaussianLaw (fun ω => ∑ i, X i ω) P :=
   h_indep.hasGaussianLaw_fun_sum hX
+
+/-- For independent real Gaussian variables, the sum is Gaussian and its
+mean and variance are respectively the sums of the component means and
+variances.
+
+**Book Corollary 3.3.3.** -/
+theorem sum_independent_gaussians_parameters
+    {Ω ι : Type*} {mΩ : MeasurableSpace Ω} {P : Measure Ω}
+    [Fintype ι] [IsProbabilityMeasure P]
+    {X : ι → Ω → ℝ}
+    (hX : ∀ i, HasGaussianLaw (X i) P)
+    (hindep : iIndepFun X P) :
+    HasGaussianLaw (fun ω => ∑ i, X i ω) P ∧
+      (∫ ω, ∑ i, X i ω ∂P) = ∑ i, ∫ ω, X i ω ∂P ∧
+      Var[∑ i, X i; P] = ∑ i, Var[X i; P] := by
+  refine ⟨sum_independent_gaussians_hasGaussianLaw hX hindep, ?_, ?_⟩
+  · rw [integral_finsetSum Finset.univ]
+    intro i _
+    exact (hX i).integrable
+  · exact IndepFun.variance_sum
+      (fun i _ => (hX i).memLp_two)
+      (fun i _ j _ hij => hindep.indepFun hij)
 
 /-- Gaussian measures are determined
 by their mean and covariance, including degenerate covariance operators.

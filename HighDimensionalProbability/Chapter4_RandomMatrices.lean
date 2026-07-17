@@ -50,6 +50,7 @@ import Mathlib.MeasureTheory.Integral.Pi
 ## Contents
 
 - §4.1 A quick refresher on linear algebra — SVD (Theorem 4.1.1),
+  orthogonal projections from orthonormal columns (Example 4.1.5),
   Courant--Fischer (Theorem 4.1.6), Eckart--Young--Mirsky (Theorem 4.1.13),
   and spectral perturbation (Lemma 4.1.14 and Theorem 4.1.15)
 - §4.2 Nets, covering, and packing — Definitions 4.2.1--4.2.4,
@@ -258,6 +259,34 @@ theorem singularValue_eq_zero_of_domain_le {m n : ℕ}
     (A : Matrix (Fin m) (Fin n) ℝ) {i : ℕ} (hi : n ≤ i) :
     HDP.matrixSingularValue A i = 0 := by
   exact HDP.matrixSingularValue_of_finrank_le A (by simpa using hi)
+
+/-- A matrix with orthonormal columns determines the rank-`k` orthogonal
+projection `P = UUᵀ`. The conjunction records symmetry, idempotence, exact
+rank, eigenvalue one on the column space, and eigenvalue zero on its orthogonal
+complement.
+
+**Book Example 4.1.5.** -/
+theorem orthogonalProjection_eq_mul_transpose {n k : ℕ}
+    (U : Matrix (Fin n) (Fin k) ℝ) (hU : U.transpose * U = 1) :
+    let P := U * U.transpose
+    P.transpose = P ∧ P * P = P ∧ P.rank = k ∧
+      (∀ x, P.mulVec (U.mulVec x) = U.mulVec x) ∧
+      (∀ x, U.transpose.mulVec x = 0 → P.mulVec x = 0) := by
+  classical
+  dsimp
+  constructor
+  · simp
+  constructor
+  · rw [Matrix.mul_assoc, ← Matrix.mul_assoc U.transpose U U.transpose, hU]
+    simp
+  constructor
+  · rw [Matrix.rank_self_mul_transpose, ← Matrix.rank_transpose_mul_self U, hU,
+      Matrix.rank_one, Fintype.card_fin]
+  constructor
+  · intro x
+    rw [Matrix.mulVec_mulVec, Matrix.mul_assoc, hU, Matrix.mul_one]
+  · intro x hx
+    rw [← Matrix.mulVec_mulVec, hx, Matrix.mulVec_zero]
 
 /-! ## Source-strength rectangular SVD -/
 

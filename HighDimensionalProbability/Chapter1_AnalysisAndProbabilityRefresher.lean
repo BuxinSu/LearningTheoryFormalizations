@@ -28,6 +28,7 @@ import Mathlib.Probability.Distributions.Gaussian.Real
 import Mathlib.Probability.Distributions.Poisson.Basic
 import Mathlib.Probability.StrongLaw
 import Mathlib.Probability.CentralLimitTheorem
+import Mathlib.Probability.ProbabilityMassFunction.Integrals
 import Mathlib.Analysis.SpecialFunctions.Stirling
 import Mathlib.Analysis.SpecialFunctions.Gamma.Basic
 import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
@@ -67,7 +68,7 @@ import Mathlib.Analysis.Asymptotics.SpecificAsymptotics
 - §1.6 Probabilistic inequalities
   - Jensen, norm-of-expectation, monotonicity, Minkowski, and Hölder.
     **Book Equations (1.18)–(1.22).**
-  - Integrated tails, Markov, and Chebyshev.
+  - Integrated tails, Markov (including sharpness), and Chebyshev.
     **Book Lemma 1.6.1; Proposition 1.6.2; Corollary 1.6.3.**
 - §1.7 Limit theorems
   - Sample-mean variance, the strong law, and the central limit theorem.
@@ -1765,6 +1766,38 @@ theorem markov_inequality {X : Ω → ℝ} (hX0 : 0 ≤ᵐ[μ] X) (hX : Integrab
     {t : ℝ} (ht : 0 < t) :
     μ.real {ω | t ≤ X ω} ≤ (∫ ω, X ω ∂μ) / t :=
   HDP.markov_real hX0 hX ht
+
+/-- The sharpness assertion immediately following Book Proposition 1.6.2.
+
+For every admissible mean `m ≤ t`, the two-point random variable taking value
+`t` with probability `m/t` and zero otherwise has mean `m` and attains equality
+in Markov's bound. Thus no smaller universal tail bound can follow from the
+mean alone.
+
+**Book §1.6, Markov optimality prose.** -/
+theorem markov_inequality_is_sharp {m t : ℝ} (hm : 0 ≤ m) (hmt : m ≤ t)
+    (ht : 0 < t) :
+    ∃ (p : PMF Bool) (X : Bool → ℝ),
+      (∫ b, X b ∂p.toMeasure) = m ∧
+      p.toMeasure {b | t ≤ X b} = ENNReal.ofReal (m / t) := by
+  have hq0 : 0 ≤ m / t := div_nonneg hm ht.le
+  have hq1 : m / t ≤ 1 := (div_le_one ht).2 hmt
+  have hsum : ENNReal.ofReal (m / t) + ENNReal.ofReal (1 - m / t) = 1 := by
+    rw [← ENNReal.ofReal_add hq0 (sub_nonneg.2 hq1)]
+    norm_num
+  let p : PMF Bool := PMF.ofFintype
+    (fun b ↦ if b then ENNReal.ofReal (m / t) else ENNReal.ofReal (1 - m / t)) (by
+      simpa [Fintype.sum_bool] using hsum)
+  let X : Bool → ℝ := fun b ↦ if b then t else 0
+  refine ⟨p, X, ?_, ?_⟩
+  · rw [PMF.integral_eq_sum]
+    simp [p, X, ENNReal.toReal_ofReal hq0]
+    field_simp
+  · have hevent : {b | t ≤ X b} = {true} := by
+      ext b
+      cases b <;> simp [X, not_le_of_gt ht]
+    rw [hevent, PMF.toMeasure_apply_singleton p true (MeasurableSet.singleton true)]
+    simp [p]
 
 /-- If `X` has mean `μ₀` and variance `σ²`, then for `t > 0`,
 `ℙ{|X − μ₀| ≥ t} ≤ σ²/t²`. The source proof squares both sides and applies Markov to
