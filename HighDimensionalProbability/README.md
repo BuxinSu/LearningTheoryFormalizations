@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **607 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 60 / 100 / 61 |
-| Core declarations | 2,456 theorems, 1,012 lemmas, and 800 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **611 verified results** |
+| Chapter distribution | Appetizer: 8; Chapters 1–9: 51 / 59 / 75 / 88 / 68 / 39 / 62 / 100 / 61 |
+| Core declarations | 2,807 theorems, 1,604 lemmas, and 1,133 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -99,7 +99,7 @@ When a result is already available in Mathlib, the development uses or specializ
 
 ## Book → Lean correspondence
 
-This table records **591 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
+This table records **611 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
 
 ### Appetizer — Using Probability to Cover a Set
 
@@ -109,11 +109,10 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Theorem 0.0.1 | Caratheodory: in `R^n`, at most `n+1` points suffice in a convex combination. | `convexHull_eq_union` | `.lake/packages/mathlib/Mathlib/Analysis/Convex/Caratheodory.lean` |
 | Theorem 0.0.2 | Equal averages of `k` points approximate every point of a convex hull within `1/sqrt(k)`. | `HDP.Chapter0.approximate_caratheodory` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
 | Corollary 0.0.3 | An `N`-vertex polytope in the unit ball has an internal `N^k`-point cover of radius `1/sqrt(k)`. | `HDP.Chapter0.exists_polytope_cover` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+| Theorem 0.0.4; (0.2) | An `N`-vertex polytope in the Euclidean unit ball has relative volume at most `(3 sqrt(log N/n))^n`, including the rounded integer optimization and the degenerate `N=0,1` cases. | `HDP.Chapter0.polytope_volume_theorem_0_0_4` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
+| Remark 0.0.5 | If `log N_n / n` tends to zero, then both the comparison radius and the relative-volume coefficient from Theorem 0.0.4 tend to zero. | `HDP.Chapter0.polytope_volume_remark_0_0_5` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
 | (0.3) | The cover yields `Vol(P) <= N^k k^(-n/2) Vol(B)` in division-free form. | `HDP.Chapter0.polytope_volume_equation_0_3` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
 | (0.4) | The positive continuous critical point is `n/(2 log N)`, uniquely. | `HDP.Chapter0.polytope_volume_optimizer_equation_0_4` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
-| Exercise 0.1(a) | Vector bias--variance identity. | `HDP.Chapter0.integral_norm_sub_mean_sq` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
-| Exercise 0.2 | A vector mean minimizes expected squared Euclidean distance. | `HDP.Chapter0.integral_norm_sub_mean_sq_le` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
-| Exercise 0.3 | Independent centered random vectors satisfy the Pythagorean second-moment identity. | `HDP.Chapter0.integral_norm_sum_sq_of_iIndepFun` | [`Chapter0_Appetizer.lean`](Chapter0_Appetizer.lean) |
 
 ### Chapter 1 — A Quick Refresher on Analysis and Probability
 
@@ -277,6 +276,11 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Lemma 3.4.2 | Independent subgaussian coordinates give a subgaussian vector; vector norm is comparable to the largest coordinate norm. | `HDP.Chapter3.subGaussianVector_of_independent_coordinates` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Example 3.4.3 | Rademacher vector is subgaussian with bounded vector norm. | `HDP.Chapter3.rademacherVector_subGaussian` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Example 3.4.4 | Standard Gaussian vector has constant vector `psi_2` norm. | `HDP.Chapter3.psi2NormVector_standardGaussian` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Theorem 3.4.5; (3.19) | Every one-dimensional marginal of the uniform sphere law satisfies `P{<X,v> >= t} <= 2 exp(-n t^2/2)`, and the resulting vector law is subgaussian with the stated dimension-dependent norm bound. | `HDP.Chapter3.sphere_tail`; `HDP.Chapter3.unitSphere_subGaussian`; `HDP.Chapter3.psi2NormVector_unitSphere_le` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| (3.20) | The normalized-Gaussian representation reduces a spherical marginal tail to a Gaussian coordinate conditioned against the squared norm of the remaining coordinates. | `HDP.Chapter3.projectiveRatio_ge_subset_rest_tail`; `HDP.Chapter3.projectiveGaussianCoordinate_rest_tail` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| (3.21) | The Gaussian Laplace-transform and product calculation evaluates the conditional exponential factor used in the spherical tail proof. | `HDP.Chapter3.lintegral_exp_neg_sq_standardGaussian`; `HDP.Chapter3.projectiveGaussianCoordinate_rest_tail` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Example 3.4.7 | The coordinate distribution on the scaled standard basis has exact vector `psi_2` norm `sqrt(n/log(n+1))`; the unscaled basis law has norm `1/sqrt(log(n+1))`. | `HDP.Chapter3.example_3_4_7_coordinate_distribution`; `HDP.Chapter3.standardBasisDistribution_psi2NormVector` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Example 3.4.8 | A finite isotropic subgaussian law has entropy at least `n/K^2-log 2` and support cardinality at least `(1/2) exp(n/K^2)`. | `HDP.Chapter3.isotropic_subgaussian_finite_support_entropy_and_card` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Theorem 3.5.1 | Real Grothendieck inequality with an absolute constant at most `1.783`. | `HDP.Chapter3.grothendieck_inequality` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Remark 3.5.2; (3.22)--(3.23) | Homogeneous scalar and Hilbert-vector forms of Grothendieck. | `HDP.Chapter3.grothendieck_homogeneous` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.24) | Raw Gaussian correlations satisfy `E[U_i V_j]=<u_i,v_j>`, turning the bilinear sum into an expectation. | `ProbabilityTheory.covarianceBilin_stdGaussian` | `.lake/packages/mathlib/Mathlib/Probability/Distributions/Gaussian/Multivariate.lean` |
@@ -428,7 +432,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Proposition 5.4.4 | Loewner order implies eigenvalue/trace monotonicity, norm intervals, and scalar spectral inequalities. | `HDP.Chapter5.loewner_lambdaMax_mono` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Remark 5.4.5 | `‖X‖<=a` is equivalent to `-aI <= X <= aI`. | `HDP.Chapter5.matrixNorm_gives_loewnerInterval` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Theorem 5.4.7 | Golden--Thompson trace-exponential inequality. | `HDP.Chapter5.goldenThompsonReal` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
-| Section 5.4.2; Exercise 5.19 | Explicit symmetric `2×2` matrices show that `exp(X+Y)=exp(X)exp(Y)` fails without commutation. | `HDP.Chapter5.matrixExponential_add_ne_mul_counterexample` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
+| Section 5.4.2 | Explicit symmetric `2×2` matrices show that `exp(X+Y)=exp(X)exp(Y)` fails without commutation. | `HDP.Chapter5.matrixExponential_add_ne_mul_counterexample` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Theorem 5.4.8 | Lieb concavity of `A -> tr exp(H+log A)`. | `HDP.Chapter5.liebConcavityReal` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Lemma 5.4.9 | Expected/random-matrix form of Lieb's inequality. | `HDP.Chapter5.randomLiebReal` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Lemma 5.4.10 | Matrix MGF is bounded by the variance term in the Bernstein range. | `HDP.Chapter5.matrixBernsteinMgf` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
@@ -496,7 +500,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Eq. (6.1) | Finite linear random sum `sum_i a_i X_i`. | `Finset.sum` | [`Chapter6_QuadraticFormsSymmetrizationContraction.lean`](Chapter6_QuadraticFormsSymmetrizationContraction.lean) |
 | Eq. (6.2) | Quadratic form equals its double coordinate sum and inner-product form. | `HDP.Chapter6.quadraticForm` | [`Chapter6_QuadraticFormsSymmetrizationContraction.lean`](Chapter6_QuadraticFormsSymmetrizationContraction.lean) |
 | Eq. (6.3) | Main decoupling inequality. | `HDP.Chapter6.decoupling` | [`Chapter6_QuadraticFormsSymmetrizationContraction.lean`](Chapter6_QuadraticFormsSymmetrizationContraction.lean) |
-| Eq. (6.4) | Partial decoupled chaos is bounded by the full bilinear chaos. | `HDP.Chapter6.integral_decoupledPartialChaos_le_bilinear` | [`Chapter6_QuadraticFormsSymmetrizationContraction.lean`](Chapter6_QuadraticFormsSymmetrizationContraction.lean) |
+| Eq. (6.4) | Every decoupled-chaos subsum is bounded by the full bilinear chaos. | `HDP.Chapter6.integral_decoupledPartialChaos_le_bilinear` | [`Chapter6_QuadraticFormsSymmetrizationContraction.lean`](Chapter6_QuadraticFormsSymmetrizationContraction.lean) |
 | Eq. (6.5) | Arbitrary-matrix off-diagonal decoupling. | `HDP.Chapter6.decoupling_offDiagonal` | [`Chapter6_QuadraticFormsSymmetrizationContraction.lean`](Chapter6_QuadraticFormsSymmetrizationContraction.lean) |
 | Eq. (6.6) | Exponential Markov step for the random-vector norm. | `HDP.Chapter6.subGaussianVector_norm_tail_explicit` | [`Chapter6_QuadraticFormsSymmetrizationContraction.lean`](Chapter6_QuadraticFormsSymmetrizationContraction.lean) |
 | Eq. (6.7) | Gaussian-mixture representation bounds the norm-square exponential. | `HDP.Chapter6.subGaussianVector_norm_tail_explicit` | [`Chapter6_QuadraticFormsSymmetrizationContraction.lean`](Chapter6_QuadraticFormsSymmetrizationContraction.lean) |
@@ -547,6 +551,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Corollary 7.4.2 | Euclidean Gaussian width dominates every Sudakov covering scale. | `HDP.Chapter7.sudakovInequality` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Corollary 7.4.3 | A polytope with `N` vertices has logarithmic covering-number bound controlled by its diameter and `log N`. | `HDP.Chapter7.polytopeCovering_log_bound` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Definition 7.5.1 | Gaussian width is the expected support of a set in a standard Gaussian direction. | `HDP.Chapter7.gaussianWidth` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
+| Proposition 7.5.2 | The actual-set Gaussian-width envelope is finite exactly on bounded sets and obeys translation, orthogonal, convex-hull, Minkowski-sum, scaling, symmetrization, diameter, and continuous-linear-image laws. | `HDP.Chapter8.euclideanSetGaussianWidthENN_eq_top_iff_not_isBounded`, `euclideanSetGaussianWidthENN_translate`, `euclideanSetGaussianWidthENN_orthogonalImage`, `euclideanSetGaussianWidthENN_convexHull`, `euclideanSetGaussianWidthENN_minkowskiSum`, `euclideanSetGaussianWidthENN_scale`, `euclideanSetGaussianWidthENN_eq_half_difference`, `euclideanSetGaussianWidthENN_diameter_bounds`, `euclideanSetGaussianWidthENN_continuousLinearImage` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Remark 7.5.3 | The width/diameter constants are optimal, witnessed by a symmetric pair and Euclidean balls. | `HDP.Chapter7.exercise_7_16_symmetricPair` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Definition 7.5.4 | Spherical width is average support over a uniform unit-sphere direction. | `HDP.Chapter7.sphericalWidth` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Lemma 7.5.5 | Gaussian width equals mean Gaussian radius times spherical width, so the two differ by a `sqrt n` factor. | `HDP.Chapter7.gaussianWidth_eq_radialMean_mul_sphericalWidth` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
@@ -695,7 +700,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 
 | Book source | Result | Lean declaration | Final module |
 |---|---|---|---|
-| Section 9.2.3 | The covariance ellipsoid generated by `B` has outer radius `‖B‖`. | `HDP.Chapter9.covarianceEllipsoid_radius` | [`Chapter9_DeviationsOfRandomMatricesOnSets.lean`](Chapter9_DeviationsOfRandomMatricesOnSets.lean) |
+| Section 9.2.3 | The covariance ellipsoid generated by `B` has outer radius `‖B‖` and Gaussian complexity at most `‖B‖_F = √tr(BᵀB)`. | `HDP.Chapter9.covarianceEllipsoid_radius`, `covarianceEllipsoid_gaussianComplexityEnvelope_le` | [`Chapter9_DeviationsOfRandomMatricesOnSets.lean`](Chapter9_DeviationsOfRandomMatricesOnSets.lean) |
 | Theorem 9.1.2 | The matrix norm-deviation process has subgaussian increments. | `HDP.Chapter9.theorem_9_1_2_subGaussianIncrements` | [`Chapter9_DeviationsOfRandomMatricesOnSets.lean`](Chapter9_DeviationsOfRandomMatricesOnSets.lean) |
 | Example 9.4.1 | Audio sampling is a high-dimensional linear inverse problem. | `HDP.Chapter9.example_9_4_1_audioSampling` | [`Chapter9_DeviationsOfRandomMatricesOnSets.lean`](Chapter9_DeviationsOfRandomMatricesOnSets.lean) |
 | Example 9.4.2 | Linear regression is a noisy linear inverse problem. | `HDP.Chapter9.example_9_4_2_linearRegression` | [`Chapter9_DeviationsOfRandomMatricesOnSets.lean`](Chapter9_DeviationsOfRandomMatricesOnSets.lean) |

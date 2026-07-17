@@ -12793,21 +12793,36 @@ theorem crossPolytopeGaussianWidth_asymptotic
     HDP.Chapter2.exercise_2_38b_max_abs hgm hg hi
 
 /-- A single canonical probability space carrying an infinite independent
-standard-Gaussian sequence. -/
+standard-Gaussian sequence.
+
+**Lean implementation helper.** -/
 private noncomputable def canonicalGaussianSequenceMeasure : Measure (ℕ → ℝ) :=
   Measure.infinitePi (fun _ : ℕ => gaussianReal 0 1)
 
+/-- The coordinate process on the canonical Gaussian product space.
+
+**Lean implementation helper.** -/
 private def canonicalGaussianSequence (i : ℕ) (ω : ℕ → ℝ) : ℝ := ω i
 
+/-- Every coordinate of the canonical Gaussian sequence is measurable.
+
+**Lean implementation helper.** -/
 private lemma canonicalGaussianSequence_measurable (i : ℕ) :
     Measurable (canonicalGaussianSequence i) := measurable_pi_apply i
 
+/-- Every coordinate of the canonical Gaussian sequence has standard-normal
+law.
+
+**Lean implementation helper.** -/
 private lemma canonicalGaussianSequence_hasLaw (i : ℕ) :
     HasLaw (canonicalGaussianSequence i) (gaussianReal 0 1)
       canonicalGaussianSequenceMeasure :=
   (measurePreserving_eval_infinitePi
     (fun _ : ℕ => gaussianReal 0 1) i).hasLaw
 
+/-- The coordinates of the canonical Gaussian sequence are independent.
+
+**Lean implementation helper.** -/
 private lemma canonicalGaussianSequence_iIndep :
     iIndepFun canonicalGaussianSequence canonicalGaussianSequenceMeasure := by
   exact iIndepFun_infinitePi
@@ -12816,7 +12831,9 @@ private lemma canonicalGaussianSequence_iIndep :
 
 /-- The canonical finite-dimensional cross-polytope width is the expected
 absolute maximum of the corresponding initial segment of one infinite
-independent Gaussian sequence. -/
+independent Gaussian sequence.
+
+**Lean implementation helper.** -/
 private theorem crossPolytopeGaussianWidth_eq_sequence (k : ℕ) :
     crossPolytopeGaussianWidth (k + 2) =
       iidCrossPolytopeWidth canonicalGaussianSequenceMeasure
@@ -12854,6 +12871,10 @@ private theorem crossPolytopeGaussianWidth_eq_sequence (k : ℕ) :
     HDP.Chapter2.gaussianMaxAbsSeq_eq_finSup, Function.comp_def] using
       (hX.integral_comp hFm.aestronglyMeasurable).symm
 
+/-- The expected absolute value of the first canonical standard-Gaussian
+coordinate.
+
+**Lean implementation helper.** -/
 private lemma integral_abs_canonicalGaussianSequence_zero :
     (∫ ω, |canonicalGaussianSequence 0 ω|
         ∂canonicalGaussianSequenceMeasure) =
@@ -12873,7 +12894,9 @@ private lemma integral_abs_canonicalGaussianSequence_zero :
       simpa [Real.rpow_one, Real.Gamma_one, hpow] using h
 
 /-- Every nontrivial cross-polytope width is bounded below by the expected
-absolute value of one standard Gaussian coordinate. -/
+absolute value of one standard Gaussian coordinate.
+
+**Lean implementation helper.** -/
 private theorem crossPolytopeGaussianWidth_lower_constant (k : ℕ) :
     Real.sqrt 2 / Real.sqrt Real.pi ≤
       crossPolytopeGaussianWidth (k + 2) := by
@@ -12910,6 +12933,9 @@ theorem crossPolytopeGaussianWidth_asymptotic_actual :
       canonicalGaussianSequence_measurable canonicalGaussianSequence_hasLaw
       canonicalGaussianSequence_iIndep
 
+/-- The normalizing scale for Gaussian maxima is monotone.
+
+**Lean implementation helper.** -/
 private lemma gaussianMaxScale_mono {k K : ℕ} (hkK : k ≤ K) :
     HDP.Chapter2.gaussianMaxScale k ≤
       HDP.Chapter2.gaussianMaxScale K := by

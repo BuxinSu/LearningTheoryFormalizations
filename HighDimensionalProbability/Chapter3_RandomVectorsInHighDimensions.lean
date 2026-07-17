@@ -30,6 +30,7 @@ import Mathlib.Tactic.FinCases
 import Mathlib.Analysis.InnerProductSpace.GramMatrix
 import Mathlib.Analysis.InnerProductSpace.Positive
 import Mathlib.Analysis.Convex.Basic
+import Mathlib.Analysis.Convex.Jensen
 import HighDimensionalProbability.Prelude.Basic
 import HighDimensionalProbability.Prelude.SimpleGraph
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
@@ -71,8 +72,16 @@ import Mathlib.MeasureTheory.Integral.Prod
 - §3.4 Subgaussian distributions in higher dimensions
   - Subgaussian random vectors and one-dimensional marginals.
     **Book Definition 3.4.1; Lemma 3.4.2; Examples 3.4.3–3.4.4.**
-  - Norm concentration and standard examples. **Book Theorem 3.4.5;
-    Equations (3.19)–(3.21); Examples 3.4.6–3.4.8.**
+  - Exact spherical marginal concentration via the normalized Gaussian model,
+    together with the resulting subgaussian vector bound.
+    **Book Theorem 3.4.5; Equations (3.19)–(3.21).**
+  - The coordinate law has the exact vector `ψ₂` norm
+    `√(n / log (n + 1))`, hence order `√(n / log n)`.
+    **Book Example 3.4.7; Exercise 3.43.**
+  - Discrete isotropic subgaussian laws have entropy at least
+    `n / K² - log 2` and at least `(1/2) exp (n / K²)` distinct support
+    points. **Book Example 3.4.8; Exercises 3.45–3.46.**
+  - Standard examples and non-examples. **Book Example 3.4.6.**
 - §3.5 Grothendieck inequality and semidefinite programming
   - Semidefinite relaxation and randomized rounding. **Book Theorem 3.5.1;
     Equations (3.22)–(3.29); Proposition 3.5.6.**
@@ -2037,7 +2046,7 @@ theorem pca_kth_maximum_principle [FiniteDimensional ℝ E] {n : ℕ}
 second moment of the scalar projection and the spectral data are those of the
 shared second-moment operator.
 
-**Lean implementation helper for Book Proposition 3.2.2.** -/
+**Book Proposition 3.2.2.** -/
 theorem secondMoment_pca_kth_maximum
     {Ω : Type*} {mΩ : MeasurableSpace Ω} {μ : Measure Ω} {n : ℕ}
     (X : Ω → EuclideanSpace ℝ (Fin n))
@@ -7183,7 +7192,7 @@ section Source_13_SubGaussianVectors
 -/
 
 open MeasureTheory ProbabilityTheory Real Filter
-open scoped RealInnerProductSpace ENNReal NNReal Topology BigOperators
+open scoped RealInnerProductSpace ENNReal NNReal Topology BigOperators Pointwise
 
 namespace HDP.Chapter3
 
@@ -7812,9 +7821,10 @@ theorem sphericalProjection_subGaussian (n : ℕ) (hn : 0 < n)
     sphereProjectionTailScale_pos
     (fun t ht => sphericalProjection_tail n hn v ht)
 
-/-- The source-scale form for an unscaled unit-sphere marginal.
+/-- A coarse two-sided tail bound for an unscaled unit-sphere marginal,
+retained as infrastructure for the explicit `ψ₂`-norm estimate below.
 
-**Book Theorem 3.4.5.** -/
+**Lean implementation helper.** -/
 theorem unitSphere_marginal_tail (n : ℕ) (hn : 0 < n)
     (v : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1)
     {t : ℝ} (ht : 0 ≤ t) :
@@ -7837,28 +7847,618 @@ theorem unitSphere_marginal_tail (n : ℕ) (hn : 0 < n)
     rw [mul_pow, Real.sq_sqrt (by exact_mod_cast hn.le)]
     ring
 
-/-- This source-facing one-sided
-bound follows from the stronger two-sided estimate above.
+/-- The exact Laplace transform of a negative multiple of the square of a
+standard Gaussian:
+`E exp (-s²g²/2) = 1 / sqrt (1+s²)`.
 
-**Book Theorem 3.4.5.** -/
+**Book Equation (3.21).** -/
+lemma lintegral_exp_neg_sq_standardGaussian (s : ℝ) :
+    (∫⁻ x : ℝ, ENNReal.ofReal (Real.exp (-(s ^ 2) * x ^ 2 / 2))
+        ∂gaussianReal 0 1) =
+      ENNReal.ofReal (Real.sqrt (1 + s ^ 2))⁻¹ := by
+  have ha : -(s ^ 2) / 2 < (1 : ℝ) / 2 := by
+    nlinarith [sq_nonneg s]
+  have hint :
+      Integrable (fun x : ℝ => Real.exp ((-(s ^ 2) / 2) * x ^ 2))
+        (gaussianReal 0 1) :=
+    HDP.Chapter2.integrable_exp_sq_mul_standardGaussian ha
+  have hfun :
+      (fun x : ℝ => Real.exp (-(s ^ 2) * x ^ 2 / 2)) =
+        fun x : ℝ => Real.exp ((-(s ^ 2) / 2) * x ^ 2) := by
+    funext x
+    congr 1
+    ring
+  have hfunOf :
+      (fun x : ℝ => ENNReal.ofReal
+        (Real.exp (-(s ^ 2) * x ^ 2 / 2))) =
+        fun x : ℝ => ENNReal.ofReal
+          (Real.exp ((-(s ^ 2) / 2) * x ^ 2)) := by
+    funext x
+    congr 2
+    ring
+  rw [hfunOf, ← ofReal_integral_eq_lintegral_ofReal hint
+    (ae_of_all _ fun x => (Real.exp_pos _).le),
+    HDP.Chapter2.integral_exp_sq_mul_standardGaussian ha]
+  congr 1
+  have hpi : 0 < Real.pi := Real.pi_pos
+  have hbase : 0 < 1 + s ^ 2 := by nlinarith [sq_nonneg s]
+  have hden : 0 < (1 : ℝ) / 2 - (-(s ^ 2) / 2) := by
+    nlinarith [sq_nonneg s]
+  have hP : 0 < Real.sqrt (2 * Real.pi) :=
+    Real.sqrt_pos.2 (by positivity)
+  have hQ : 0 ≤ Real.sqrt
+      (Real.pi / ((1 : ℝ) / 2 - (-(s ^ 2) / 2))) :=
+    Real.sqrt_nonneg _
+  have hR : 0 < Real.sqrt (1 + s ^ 2) :=
+    Real.sqrt_pos.2 hbase
+  have hprod :
+      Real.sqrt
+          (Real.pi / ((1 : ℝ) / 2 - (-(s ^ 2) / 2))) *
+          Real.sqrt (1 + s ^ 2) =
+        Real.sqrt (2 * Real.pi) := by
+    symm
+    apply (Real.sqrt_eq_iff_mul_self_eq (by positivity)
+      (mul_nonneg hQ hR.le)).2
+    calc
+      2 * Real.pi =
+          (Real.pi / ((1 : ℝ) / 2 - (-(s ^ 2) / 2))) *
+            (1 + s ^ 2) := by
+              field_simp [hbase.ne']
+              ring
+      _ = (Real.sqrt
+              (Real.pi / ((1 : ℝ) / 2 - (-(s ^ 2) / 2))) *
+            Real.sqrt (1 + s ^ 2)) *
+          (Real.sqrt
+              (Real.pi / ((1 : ℝ) / 2 - (-(s ^ 2) / 2))) *
+            Real.sqrt (1 + s ^ 2)) := by
+              rw [mul_mul_mul_comm,
+                Real.mul_self_sqrt (div_nonneg hpi.le hden.le),
+                Real.mul_self_sqrt hbase.le]
+  have hQdiv :
+      Real.sqrt
+          (Real.pi / ((1 : ℝ) / 2 - (-(s ^ 2) / 2))) =
+        Real.sqrt (2 * Real.pi) / Real.sqrt (1 + s ^ 2) :=
+    (eq_div_iff hR.ne').2 hprod
+  rw [hQdiv]
+  field_simp
+
+/-- The sum of the squared projective Gaussian coordinates other than the
+zeroth coordinate among the first `n` coordinates.
+
+**Lean implementation helper.** -/
+def projectiveGaussianRestSquareSum (n : ℕ) (w : ProjectiveOmega) : ℝ :=
+  ∑ i ∈ (Finset.range n).erase 0, projectiveGaussianCoordinate i w ^ 2
+
+/-- Every projective Gaussian coordinate is measurable.
+
+**Lean implementation helper.** -/
+lemma measurable_projectiveGaussianCoordinate (i : ℕ) :
+    Measurable (projectiveGaussianCoordinate i) := by
+  change Measurable (fun w : ProjectiveOmega => w i)
+  fun_prop
+
+/-- The sum of the squared nonzeroth projective Gaussian coordinates is
+measurable.
+
+**Lean implementation helper.** -/
+lemma measurable_projectiveGaussianRestSquareSum (n : ℕ) :
+    Measurable (projectiveGaussianRestSquareSum n) := by
+  unfold projectiveGaussianRestSquareSum
+  apply Finset.measurable_sum
+  intro i hi
+  exact (measurable_projectiveGaussianCoordinate i).pow_const 2
+
+/-- Conditioning on the nonzeroth coordinates and applying the exact
+one-sided Gaussian tail gives the product Laplace bound used in the book
+proof.
+
+**Book Equation (3.20), with the Laplace-product evaluation in Equation (3.21).** -/
+lemma projectiveGaussianCoordinate_rest_tail (n : ℕ) (hn : 0 < n)
+    {s : ℝ} (hs : 0 ≤ s) :
+    projectiveProbability
+        {w | s * Real.sqrt (projectiveGaussianRestSquareSum n w) ≤
+          projectiveGaussianCoordinate 0 w} ≤
+      ENNReal.ofReal (Real.sqrt (1 + s ^ 2))⁻¹ ^ (n - 1) := by
+  letI : IsProbabilityMeasure projectiveProbability := by
+    dsimp [projectiveProbability]
+    infer_instance
+  let I : Finset ℕ := (Finset.range n).erase 0
+  let Z : ℕ → ProjectiveOmega → ℝ :=
+    fun i w => if i = 0 then projectiveGaussianCoordinate i w
+      else projectiveGaussianCoordinate i w ^ 2
+  have hZmeas : ∀ i, Measurable (Z i) := by
+    intro i
+    dsimp [Z]
+    split_ifs
+    · exact measurable_projectiveGaussianCoordinate i
+    · exact (measurable_projectiveGaussianCoordinate i).pow_const 2
+  have hZind : iIndepFun Z projectiveProbability := by
+    exact iIndep_projectiveGaussianCoordinate.comp
+      (fun i x => if i = 0 then x else x ^ 2)
+      (fun i => by split_ifs <;> fun_prop)
+  have h0not : 0 ∉ I := by simp [I]
+  have hind :
+      IndepFun (projectiveGaussianRestSquareSum n)
+        (projectiveGaussianCoordinate 0) projectiveProbability := by
+    have h := hZind.indepFun_finsetSum_of_notMem hZmeas h0not
+    have hsum :
+        (∑ i ∈ I, Z i) = projectiveGaussianRestSquareSum n := by
+      funext w
+      simp only [Finset.sum_apply]
+      apply Finset.sum_congr rfl
+      intro i hi
+      have hi0 : i ≠ 0 := by
+        exact fun hzero => h0not (hzero ▸ hi)
+      simp [Z, hi0]
+    have hzero : Z 0 = projectiveGaussianCoordinate 0 := by
+      funext w
+      simp [Z]
+    rwa [hsum, hzero] at h
+  let A : Set (ℝ × ℝ) := {p | s * Real.sqrt p.1 ≤ p.2}
+  have hA : MeasurableSet A := by
+    dsimp [A]
+    exact measurableSet_le
+      (measurable_const.mul
+        (Real.continuous_sqrt.measurable.comp measurable_fst))
+      measurable_snd
+  have hSmeas : Measurable (projectiveGaussianRestSquareSum n) :=
+    measurable_projectiveGaussianRestSquareSum n
+  have hGmeas : Measurable (projectiveGaussianCoordinate 0) :=
+    measurable_projectiveGaussianCoordinate 0
+  have hpair :
+      Measure.map
+          (fun w => (projectiveGaussianRestSquareSum n w,
+            projectiveGaussianCoordinate 0 w)) projectiveProbability =
+        (Measure.map (projectiveGaussianRestSquareSum n)
+            projectiveProbability).prod (gaussianReal 0 1) := by
+    rw [hind.map_prod_eq_prod_map_map hSmeas.aemeasurable hGmeas.aemeasurable,
+      (hasLaw_projectiveGaussianCoordinate 0).map_eq]
+  calc
+    projectiveProbability
+        {w | s * Real.sqrt (projectiveGaussianRestSquareSum n w) ≤
+          projectiveGaussianCoordinate 0 w} =
+        Measure.map
+          (fun w => (projectiveGaussianRestSquareSum n w,
+            projectiveGaussianCoordinate 0 w)) projectiveProbability A := by
+      rw [Measure.map_apply (hSmeas.prodMk hGmeas) hA]
+      rfl
+    _ = ((Measure.map (projectiveGaussianRestSquareSum n)
+          projectiveProbability).prod (gaussianReal 0 1)) A := by
+      rw [hpair]
+    _ = ∫⁻ y, (gaussianReal 0 1) {x | s * Real.sqrt y ≤ x}
+          ∂(Measure.map (projectiveGaussianRestSquareSum n)
+            projectiveProbability) := by
+      rw [Measure.prod_apply hA]
+      rfl
+    _ ≤ ∫⁻ y, ENNReal.ofReal
+          (Real.exp (-(s * Real.sqrt y) ^ 2 / 2))
+          ∂(Measure.map (projectiveGaussianRestSquareSum n)
+            projectiveProbability) := by
+      apply lintegral_mono
+      intro y
+      have htail := HDP.Chapter2.gaussian_tail_exponential
+        ((MeasurePreserving.id (gaussianReal 0 1)).hasLaw)
+        (mul_nonneg hs (Real.sqrt_nonneg y))
+      calc
+        (gaussianReal 0 1) {x | s * Real.sqrt y ≤ x} =
+            ENNReal.ofReal
+              ((gaussianReal 0 1) {x | s * Real.sqrt y ≤ x}).toReal := by
+          exact (ENNReal.ofReal_toReal (measure_ne_top _ _)).symm
+        _ ≤ ENNReal.ofReal
+              (Real.exp (-(s * Real.sqrt y) ^ 2 / 2)) := by
+          apply ENNReal.ofReal_le_ofReal
+          simpa [measureReal_def] using htail
+    _ = ∫⁻ w, ENNReal.ofReal
+          (Real.exp
+            (-(s * Real.sqrt
+              (projectiveGaussianRestSquareSum n w)) ^ 2 / 2))
+          ∂projectiveProbability := by
+      rw [lintegral_map' (by fun_prop) hSmeas.aemeasurable]
+    _ = ∫⁻ w, ∏ i ∈ I, ENNReal.ofReal
+          (Real.exp (-(s ^ 2) *
+            projectiveGaussianCoordinate i w ^ 2 / 2))
+          ∂projectiveProbability := by
+      apply lintegral_congr
+      intro w
+      have hSnonneg : 0 ≤ projectiveGaussianRestSquareSum n w := by
+        exact Finset.sum_nonneg fun i _ => sq_nonneg _
+      rw [mul_pow, Real.sq_sqrt hSnonneg]
+      simp only [I, projectiveGaussianRestSquareSum]
+      rw [← ENNReal.ofReal_prod_of_nonneg]
+      · congr 1
+        rw [← Real.exp_sum]
+        congr 1
+        rw [← Finset.sum_div, ← Finset.mul_sum]
+        ring
+      · intro i hi
+        positivity
+    _ = ∏ i ∈ I, ∫⁻ w, ENNReal.ofReal
+          (Real.exp (-(s ^ 2) *
+            projectiveGaussianCoordinate i w ^ 2 / 2))
+          ∂projectiveProbability := by
+      apply lintegral_prod_eq_prod_lintegral_of_indepFun
+      · exact iIndep_projectiveGaussianCoordinate.comp
+          (fun _ x => ENNReal.ofReal
+            (Real.exp (-(s ^ 2) * x ^ 2 / 2)))
+          (fun _ => by fun_prop)
+      · intro i
+        exact (((measurable_projectiveGaussianCoordinate i).pow_const 2).const_mul
+          (-(s ^ 2))).div_const 2 |>.exp.ennreal_ofReal
+    _ = ∏ _i ∈ I, ENNReal.ofReal
+          (Real.sqrt (1 + s ^ 2))⁻¹ := by
+      apply Finset.prod_congr rfl
+      intro i hi
+      calc
+        (∫⁻ w, ENNReal.ofReal
+            (Real.exp (-(s ^ 2) *
+              projectiveGaussianCoordinate i w ^ 2 / 2))
+            ∂projectiveProbability) =
+            ∫⁻ x : ℝ, ENNReal.ofReal
+              (Real.exp (-(s ^ 2) * x ^ 2 / 2))
+              ∂gaussianReal 0 1 := by
+          exact (hasLaw_projectiveGaussianCoordinate i).lintegral_comp
+            (f := fun x : ℝ => ENNReal.ofReal
+              (Real.exp (-(s ^ 2) * x ^ 2 / 2)))
+            (by fun_prop)
+        _ = _ := lintegral_exp_neg_sq_standardGaussian s
+    _ = ENNReal.ofReal (Real.sqrt (1 + s ^ 2))⁻¹ ^ (n - 1) := by
+      rw [Finset.prod_const, Finset.card_erase_of_mem]
+      · simp
+      · simpa [I] using hn
+
+/-- The squared norm of the first `n` projective Gaussian coordinates splits
+as the square of the zeroth coordinate plus the remaining square sum.
+
+**Lean implementation helper.** -/
+lemma projectiveGaussianVector_norm_sq (n : ℕ) (hn : 0 < n)
+    (w : ProjectiveOmega) :
+    ‖projectiveGaussianVector n w‖ ^ 2 =
+      projectiveGaussianCoordinate 0 w ^ 2 +
+        projectiveGaussianRestSquareSum n w := by
+  simp only [projectiveGaussianVector, projectiveGaussianCoordinate,
+    projectiveGaussianRestSquareSum]
+  rw [EuclideanSpace.real_norm_sq_eq,
+    Fin.sum_univ_eq_sum_range (fun i : ℕ => w i ^ 2)]
+  exact (Finset.add_sum_erase (Finset.range n) (fun i => w i ^ 2)
+    (by simpa using hn)).symm
+
+/-- Below the endpoint `t = 1`, the normalized Gaussian ratio event is
+contained in the conditioned Gaussian event appearing in the book proof.
+
+**Book Equation (3.20).** -/
+lemma projectiveRatio_ge_subset_rest_tail (n : ℕ) (hn : 0 < n)
+    {t : ℝ} (ht : 0 ≤ t) (htlt : t < 1) :
+    {w | Real.sqrt n * t ≤ projectiveRatio n w} ⊆
+      {w | (t / Real.sqrt (1 - t ^ 2)) *
+          Real.sqrt (projectiveGaussianRestSquareSum n w) ≤
+        projectiveGaussianCoordinate 0 w} := by
+  intro w hw
+  have hnR : 0 < (n : ℝ) := by exact_mod_cast hn
+  have hsqrtN : 0 < Real.sqrt (n : ℝ) := Real.sqrt_pos.2 hnR
+  have hbase : 0 < 1 - t ^ 2 := by nlinarith [sq_nonneg t]
+  have hsqrtBase : 0 < Real.sqrt (1 - t ^ 2) :=
+    Real.sqrt_pos.2 hbase
+  have hSnonneg : 0 ≤ projectiveGaussianRestSquareSum n w :=
+    Finset.sum_nonneg fun i _ => sq_nonneg _
+  by_cases hvec : projectiveGaussianVector n w = 0
+  · have hnormsq := projectiveGaussianVector_norm_sq n hn w
+    rw [hvec, norm_zero] at hnormsq
+    norm_num at hnormsq
+    have hGzero : projectiveGaussianCoordinate 0 w = 0 := by
+      nlinarith [sq_nonneg (projectiveGaussianCoordinate 0 w), hSnonneg]
+    have hSzero : projectiveGaussianRestSquareSum n w = 0 := by
+      nlinarith [sq_nonneg (projectiveGaussianCoordinate 0 w), hSnonneg]
+    simp [hGzero, hSzero]
+  · have hR : 0 < ‖projectiveGaussianVector n w‖ :=
+      norm_pos_iff.mpr hvec
+    have hw' :
+        t ≤ projectiveGaussianCoordinate 0 w /
+          ‖projectiveGaussianVector n w‖ := by
+      change Real.sqrt n * t ≤ projectiveRatio n w at hw
+      rw [projectiveRatio_eq_scaled_coordinate_div_norm n hn w hvec] at hw
+      apply (mul_le_mul_iff_right₀ hsqrtN).mp
+      simpa [div_eq_mul_inv, mul_assoc] using hw
+    have htR :
+        t * ‖projectiveGaussianVector n w‖ ≤
+          projectiveGaussianCoordinate 0 w :=
+      (le_div_iff₀ hR).mp hw'
+    have hGnonneg : 0 ≤ projectiveGaussianCoordinate 0 w :=
+      (mul_nonneg ht hR.le).trans htR
+    have hsquare :
+        (t * ‖projectiveGaussianVector n w‖) ^ 2 ≤
+          projectiveGaussianCoordinate 0 w ^ 2 :=
+      (sq_le_sq₀ (mul_nonneg ht hR.le) hGnonneg).2 htR
+    rw [mul_pow, projectiveGaussianVector_norm_sq n hn w] at hsquare
+    have htargetSq :
+        ((t / Real.sqrt (1 - t ^ 2)) *
+            Real.sqrt (projectiveGaussianRestSquareSum n w)) ^ 2 ≤
+          projectiveGaussianCoordinate 0 w ^ 2 := by
+      rw [mul_pow, div_pow, Real.sq_sqrt hbase.le,
+        Real.sq_sqrt hSnonneg]
+      rw [div_mul_eq_mul_div]
+      apply (div_le_iff₀ hbase).2
+      nlinarith
+    exact (sq_le_sq₀
+      (mul_nonneg (div_nonneg ht hsqrtBase.le)
+        (Real.sqrt_nonneg _)) hGnonneg).mp htargetSq
+
+/-- For `0 ≤ t < 1`, the self-normalized first Gaussian coordinate obeys
+the exact source tail `2 exp (-nt²/2)`.
+
+**Book Theorem 3.4.5; Equation (3.19).** -/
+lemma projectiveRatio_oneSided_tail_lt_one (n : ℕ) (hn : 0 < n)
+    {t : ℝ} (ht : 0 ≤ t) (htlt : t < 1) :
+    projectiveProbability {w | Real.sqrt n * t ≤ projectiveRatio n w} ≤
+      ENNReal.ofReal (2 * Real.exp (-(n : ℝ) * t ^ 2 / 2)) := by
+  let s := t / Real.sqrt (1 - t ^ 2)
+  have hbase : 0 < 1 - t ^ 2 := by nlinarith [sq_nonneg t]
+  have hsqrtBase : 0 < Real.sqrt (1 - t ^ 2) :=
+    Real.sqrt_pos.2 hbase
+  have hs : 0 ≤ s := div_nonneg ht hsqrtBase.le
+  have htail := projectiveGaussianCoordinate_rest_tail n hn hs
+  have hsubset := projectiveRatio_ge_subset_rest_tail n hn ht htlt
+  have hfactor :
+      (Real.sqrt (1 + s ^ 2))⁻¹ = Real.sqrt (1 - t ^ 2) := by
+    have hinside : 1 + s ^ 2 = (1 - t ^ 2)⁻¹ := by
+      dsimp [s]
+      rw [div_pow, Real.sq_sqrt hbase.le]
+      field_simp [hbase.ne']
+      ring
+    rw [hinside, Real.sqrt_inv, inv_inv]
+  have hsqrtExp :
+      Real.sqrt (1 - t ^ 2) ≤ Real.exp (-(t ^ 2) / 2) := by
+    apply (sq_le_sq₀ (Real.sqrt_nonneg _) (Real.exp_pos _).le).mp
+    rw [Real.sq_sqrt hbase.le]
+    have hexpSq :
+        Real.exp (-(t ^ 2) / 2) ^ 2 = Real.exp (-(t ^ 2)) := by
+      rw [pow_two, ← Real.exp_add]
+      congr 1
+      ring
+    rw [hexpSq]
+    exact Real.one_sub_le_exp_neg (t ^ 2)
+  have hnOne : 1 ≤ n := hn
+  have hreal :
+      Real.sqrt (1 - t ^ 2) ^ (n - 1) ≤
+        2 * Real.exp (-(n : ℝ) * t ^ 2 / 2) := by
+    calc
+      Real.sqrt (1 - t ^ 2) ^ (n - 1) ≤
+          Real.exp (-(t ^ 2) / 2) ^ (n - 1) := by
+        gcongr
+      _ = Real.exp (((n : ℝ) - 1) * (-(t ^ 2) / 2)) := by
+        rw [← Real.exp_nat_mul]
+        congr 1
+        rw [Nat.cast_sub hnOne]
+        norm_num
+      _ = Real.exp (t ^ 2 / 2) *
+          Real.exp (-(n : ℝ) * t ^ 2 / 2) := by
+        rw [← Real.exp_add]
+        congr 1
+        ring
+      _ ≤ 2 * Real.exp (-(n : ℝ) * t ^ 2 / 2) := by
+        apply mul_le_mul_of_nonneg_right _ (Real.exp_pos _).le
+        have htlog : t ^ 2 / 2 ≤ Real.log 2 := by
+          nlinarith [Real.log_two_gt_d9, sq_nonneg t]
+        calc
+          Real.exp (t ^ 2 / 2) ≤ Real.exp (Real.log 2) :=
+            Real.exp_le_exp.mpr htlog
+          _ = 2 := Real.exp_log (by norm_num)
+  calc
+    projectiveProbability {w | Real.sqrt n * t ≤ projectiveRatio n w} ≤
+        projectiveProbability
+          {w | s * Real.sqrt (projectiveGaussianRestSquareSum n w) ≤
+            projectiveGaussianCoordinate 0 w} :=
+      measure_mono hsubset
+    _ ≤ ENNReal.ofReal (Real.sqrt (1 + s ^ 2))⁻¹ ^ (n - 1) := htail
+    _ = ENNReal.ofReal
+        (Real.sqrt (1 - t ^ 2) ^ (n - 1)) := by
+      rw [hfactor, ENNReal.ofReal_pow (Real.sqrt_nonneg _)]
+    _ ≤ ENNReal.ofReal (2 * Real.exp (-(n : ℝ) * t ^ 2 / 2)) :=
+      ENNReal.ofReal_le_ofReal hreal
+
+/-- Rotation invariance and the normalized Gaussian representation identify
+every one-sided scaled spherical marginal with the projective Gaussian ratio.
+
+**Lean implementation helper.** -/
+lemma sphericalProjection_oneSided_tail_measure_eq_projective
+    (n : ℕ) (hn : 0 < n)
+    (v : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1) (a : ℝ) :
+    (HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n)))
+        {x | a ≤ sphericalProjection n v x} =
+      projectiveProbability {w | a ≤ projectiveRatio n w} := by
+  let σ := HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))
+  let A : Set ℝ := {y | a ≤ y}
+  have hA : MeasurableSet A := measurableSet_Ici
+  have hmap : Measure.map (sphericalProjection n v) σ =
+      Measure.map (projectiveRatio n) projectiveProbability :=
+    (map_sphericalProjection_eq n v (firstUnitDirection n hn)).trans
+      (map_sphericalProjection_first_eq_projectiveRatio n hn)
+  calc
+    σ {x | a ≤ sphericalProjection n v x} =
+        (Measure.map (sphericalProjection n v) σ) A := by
+      rw [Measure.map_apply (measurable_sphericalProjection n v) hA]
+      rfl
+    _ = (Measure.map (projectiveRatio n) projectiveProbability) A := by
+      rw [hmap]
+    _ = projectiveProbability {w | a ≤ projectiveRatio n w} := by
+      rw [Measure.map_apply_of_aemeasurable
+        (projectiveRatio_aemeasurable n) hA]
+      rfl
+
+/-- In dimension at least two, attaining the endpoint of the normalized
+Gaussian ratio forces the first remaining Gaussian coordinate to vanish.
+
+**Lean implementation helper.** -/
+lemma projectiveRatio_endpoint_subset (n : ℕ) (hn2 : 2 ≤ n) :
+    {w | Real.sqrt n ≤ projectiveRatio n w} ⊆
+      {w | projectiveGaussianCoordinate 1 w = 0} := by
+  have hn : 0 < n := lt_of_lt_of_le (by norm_num) hn2
+  intro w hw
+  have hnR : 0 < (n : ℝ) := by exact_mod_cast hn
+  have hsqrtN : 0 < Real.sqrt (n : ℝ) := Real.sqrt_pos.2 hnR
+  have hSnonneg : 0 ≤ projectiveGaussianRestSquareSum n w :=
+    Finset.sum_nonneg fun i _ => sq_nonneg _
+  have hSzero : projectiveGaussianRestSquareSum n w = 0 := by
+    by_cases hvec : projectiveGaussianVector n w = 0
+    · have hnormsq := projectiveGaussianVector_norm_sq n hn w
+      rw [hvec, norm_zero] at hnormsq
+      norm_num at hnormsq
+      nlinarith [sq_nonneg (projectiveGaussianCoordinate 0 w)]
+    · have hR : 0 < ‖projectiveGaussianVector n w‖ :=
+        norm_pos_iff.mpr hvec
+      change Real.sqrt n ≤ projectiveRatio n w at hw
+      rw [projectiveRatio_eq_scaled_coordinate_div_norm n hn w hvec] at hw
+      have hratio :
+          1 ≤ projectiveGaussianCoordinate 0 w /
+            ‖projectiveGaussianVector n w‖ := by
+        apply (mul_le_mul_iff_right₀ hsqrtN).mp
+        simpa [div_eq_mul_inv, mul_assoc] using hw
+      have hnormle :
+          ‖projectiveGaussianVector n w‖ ≤
+            projectiveGaussianCoordinate 0 w := by
+        simpa using (le_div_iff₀ hR).mp hratio
+      have hGnonneg : 0 ≤ projectiveGaussianCoordinate 0 w :=
+        hR.le.trans hnormle
+      have hsquare :
+          ‖projectiveGaussianVector n w‖ ^ 2 ≤
+            projectiveGaussianCoordinate 0 w ^ 2 :=
+        (sq_le_sq₀ hR.le hGnonneg).2 hnormle
+      rw [projectiveGaussianVector_norm_sq n hn w] at hsquare
+      nlinarith
+  have h1mem : 1 ∈ (Finset.range n).erase 0 := by
+    simp
+    omega
+  have hterm :
+      projectiveGaussianCoordinate 1 w ^ 2 ≤
+        projectiveGaussianRestSquareSum n w := by
+    unfold projectiveGaussianRestSquareSum
+    exact Finset.single_le_sum
+      (fun i hi => sq_nonneg (projectiveGaussianCoordinate i w)) h1mem
+  apply sq_eq_zero_iff.mp
+  exact le_antisymm (hterm.trans_eq hSzero) (sq_nonneg _)
+
+/-- In dimension at least two, the projective ratio has no atom at its
+largest possible value.
+
+**Lean implementation helper.** -/
+lemma projectiveRatio_endpoint_measure_zero (n : ℕ) (hn2 : 2 ≤ n) :
+    projectiveProbability {w | Real.sqrt n ≤ projectiveRatio n w} = 0 := by
+  apply nonpos_iff_eq_zero.mp
+  calc
+    projectiveProbability {w | Real.sqrt n ≤ projectiveRatio n w} ≤
+        projectiveProbability {w | projectiveGaussianCoordinate 1 w = 0} :=
+      measure_mono (projectiveRatio_endpoint_subset n hn2)
+    _ = 0 := by
+      have hset :
+          {w | projectiveGaussianCoordinate 1 w = 0} =
+            projectiveGaussianCoordinate 1 ⁻¹' ({0} : Set ℝ) := by
+        ext w
+        simp
+      calc
+        projectiveProbability
+            {w | projectiveGaussianCoordinate 1 w = 0} =
+            (gaussianReal 0 1) ({0} : Set ℝ) := by
+          rw [hset]
+          exact (hasLaw_projectiveGaussianCoordinate 1).measure_eq
+            (measurableSet_singleton 0)
+        _ = 0 := by
+          letI : NoAtoms (gaussianReal 0 1) :=
+            noAtoms_gaussianReal (by norm_num)
+          simp
+
+/-- The one-sided marginal of normalized surface measure on the unit sphere
+satisfies the exact source bound
+`P {⟨X,v⟩ ≥ t} ≤ 2 exp (-nt²/2)` for every `t ≥ 0`.
+
+**Book Theorem 3.4.5; Equation (3.19).** -/
 theorem sphere_tail (n : ℕ) (hn : 0 < n)
     (v : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1)
     {t : ℝ} (ht : 0 ≤ t) :
     (HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n)))
         {x | t ≤ inner ℝ (x : EuclideanSpace ℝ (Fin n))
           (v : EuclideanSpace ℝ (Fin n))} ≤
-      ENNReal.ofReal
-        (2 * Real.exp (-(n : ℝ) * t ^ 2 / sphereProjectionTailScale ^ 2)) := by
-  calc
-    (HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n)))
-        {x | t ≤ inner ℝ (x : EuclideanSpace ℝ (Fin n)) v}
-        ≤ (HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n)))
-          {x | t ≤ |inner ℝ (x : EuclideanSpace ℝ (Fin n)) v|} := by
-      apply measure_mono
-      intro x hx
-      change t ≤ inner ℝ (x : EuclideanSpace ℝ (Fin n)) v at hx
-      exact hx.trans (le_abs_self _)
-    _ ≤ _ := unitSphere_marginal_tail n hn v ht
+      ENNReal.ofReal (2 * Real.exp (-(n : ℝ) * t ^ 2 / 2)) := by
+  have hnR : 0 < (n : ℝ) := by exact_mod_cast hn
+  have hsqrtN : 0 < Real.sqrt (n : ℝ) := Real.sqrt_pos.2 hnR
+  have hscaled :
+      {x : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 |
+          t ≤ inner ℝ (x : EuclideanSpace ℝ (Fin n))
+            (v : EuclideanSpace ℝ (Fin n))} =
+        {x : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 |
+          Real.sqrt n * t ≤ sphericalProjection n v x} := by
+    ext x
+    change (t ≤ inner ℝ (x : EuclideanSpace ℝ (Fin n))
+      (v : EuclideanSpace ℝ (Fin n))) ↔
+      Real.sqrt n * t ≤ Real.sqrt n *
+        inner ℝ (x : EuclideanSpace ℝ (Fin n))
+          (v : EuclideanSpace ℝ (Fin n))
+    exact (mul_le_mul_iff_right₀ hsqrtN).symm
+  by_cases htlt : t < 1
+  · rw [hscaled,
+      sphericalProjection_oneSided_tail_measure_eq_projective
+        n hn v (Real.sqrt n * t)]
+    exact projectiveRatio_oneSided_tail_lt_one n hn ht htlt
+  · have htOne : 1 ≤ t := le_of_not_gt htlt
+    rcases htOne.eq_or_lt with rfl | htgt
+    · by_cases hnOne : n = 1
+      · subst n
+        calc
+          (HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin 1)))
+              {x | 1 ≤ inner ℝ (x : EuclideanSpace ℝ (Fin 1))
+                (v : EuclideanSpace ℝ (Fin 1))} ≤ 1 := prob_le_one
+          _ = ENNReal.ofReal 1 := by simp
+          _ ≤ ENNReal.ofReal
+              (2 * Real.exp (-(1 : ℝ) * 1 ^ 2 / 2)) := by
+            apply ENNReal.ofReal_le_ofReal
+            have hlog : (1 : ℝ) / 2 ≤ Real.log 2 := by
+              nlinarith [Real.log_two_gt_d9]
+            calc
+              (1 : ℝ) = 2 * Real.exp (-Real.log 2) := by
+                rw [Real.exp_neg,
+                  Real.exp_log (by norm_num : (0 : ℝ) < 2)]
+                norm_num
+              _ ≤ 2 * Real.exp (-(1 : ℝ) / 2) := by
+                gcongr
+                linarith
+              _ = 2 * Real.exp (-(1 : ℝ) * 1 ^ 2 / 2) := by
+                congr 2
+                ring
+          _ = ENNReal.ofReal
+              (2 * Real.exp (-((1 : ℕ) : ℝ) * 1 ^ 2 / 2)) := by
+            norm_num
+      · have hn2 : 2 ≤ n := by omega
+        rw [hscaled]
+        simp only [mul_one]
+        rw [
+          sphericalProjection_oneSided_tail_measure_eq_projective
+            n hn v (Real.sqrt n),
+          projectiveRatio_endpoint_measure_zero n hn2]
+        exact bot_le
+    · have hempty :
+          {x : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 |
+              t ≤ inner ℝ (x : EuclideanSpace ℝ (Fin n))
+                (v : EuclideanSpace ℝ (Fin n))} = ∅ := by
+        apply Set.eq_empty_iff_forall_notMem.mpr
+        intro x hx
+        have hxNorm : ‖(x : EuclideanSpace ℝ (Fin n))‖ = 1 := by
+          simpa only [mem_sphere_zero_iff_norm, sub_zero] using x.property
+        have hvNorm : ‖(v : EuclideanSpace ℝ (Fin n))‖ = 1 := by
+          simpa only [mem_sphere_zero_iff_norm, sub_zero] using v.property
+        have hinner :
+            inner ℝ (x : EuclideanSpace ℝ (Fin n))
+                (v : EuclideanSpace ℝ (Fin n)) ≤ 1 := by
+          calc
+            inner ℝ (x : EuclideanSpace ℝ (Fin n))
+                (v : EuclideanSpace ℝ (Fin n)) ≤
+                |inner ℝ (x : EuclideanSpace ℝ (Fin n))
+                  (v : EuclideanSpace ℝ (Fin n))| := le_abs_self _
+            _ ≤ ‖(x : EuclideanSpace ℝ (Fin n))‖ *
+                ‖(v : EuclideanSpace ℝ (Fin n))‖ :=
+              abs_real_inner_le_norm _ _
+            _ = 1 := by rw [hxNorm, hvNorm, one_mul]
+        exact (not_le_of_gt (hinner.trans_lt htgt)) hx
+      rw [hempty]
+      rw [measure_empty]
+      exact bot_le
 
 /-- The dimension-rescaled uniform unit-sphere vector is a subgaussian random vector.
 
@@ -7955,6 +8555,875 @@ theorem unitSphere_subGaussian (n : ℕ) (hn : 0 < n) :
         (HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))) ≤
           Real.sqrt 5 * sphereProjectionTailScale / Real.sqrt n :=
   ⟨unitSphere_subGaussianVector n hn, psi2NormVector_unitSphere_le n hn⟩
+
+/-! ## Examples 3.4.7–3.4.8: discrete distributions -/
+
+/-- The `ψ₂` functional of a scalar random variable on a nonempty finite
+uniform probability space is its normalized finite sum.
+
+**Lean implementation helper.** -/
+lemma psi2MGF_uniform_fin {n : ℕ} [NeZero n] (Y : Fin n → ℝ) (K : ℝ) :
+    HDP.psi2MGF Y (uniformOn (Set.univ : Set (Fin n))) K =
+      (n : ℝ≥0∞)⁻¹ *
+        ∑ i, ENNReal.ofReal (Real.exp ((Y i) ^ 2 / K ^ 2)) := by
+  unfold HDP.psi2MGF uniformOn ProbabilityTheory.cond
+  rw [Measure.restrict_univ, lintegral_smul_measure, lintegral_count,
+    tsum_fintype]
+  simp only [Measure.count_univ, ENat.card_eq_coe_fintype_card,
+    Fintype.card_fin]
+  rfl
+
+/-- Real-valued form of `psi2MGF_uniform_fin`.
+
+**Lean implementation helper.** -/
+lemma psi2MGF_uniform_fin_eq_ofReal_average {n : ℕ} [NeZero n]
+    (Y : Fin n → ℝ) (K : ℝ) :
+    HDP.psi2MGF Y (uniformOn (Set.univ : Set (Fin n))) K =
+      ENNReal.ofReal ((n : ℝ)⁻¹ *
+        ∑ i, Real.exp ((Y i) ^ 2 / K ^ 2)) := by
+  rw [psi2MGF_uniform_fin]
+  rw [← ENNReal.ofReal_natCast n,
+    ← ENNReal.ofReal_inv_of_pos (Nat.cast_pos.mpr (NeZero.pos n))]
+  rw [← ENNReal.ofReal_sum_of_nonneg
+    (fun i _ => (Real.exp_pos _).le)]
+  rw [← ENNReal.ofReal_mul (inv_nonneg.mpr (Nat.cast_nonneg n))]
+
+/-- The exponential graph lies below its endpoint chord on the unit
+interval.
+
+**Lean implementation helper.** -/
+lemma exp_mul_unitInterval_le_chord {a q : ℝ}
+    (hq0 : 0 ≤ q) (hq1 : q ≤ 1) :
+    Real.exp (q * a) ≤ 1 + q * (Real.exp a - 1) := by
+  have h := convexOn_exp.2 (by simp : (0 : ℝ) ∈ Set.univ)
+    (by simp : a ∈ Set.univ) (sub_nonneg.mpr hq1) hq0 (by ring)
+  norm_num [smul_eq_mul] at h
+  linarith
+
+/-- The exact `ψ₂` scale of the isotropic coordinate distribution
+`Unif {√n eᵢ}` under the source normalization
+`E exp (X² / K²) ≤ 2`.
+
+**Book Example 3.4.7; Exercise 3.43.** -/
+noncomputable def coordinatePsi2Scale (n : ℕ) : ℝ :=
+  Real.sqrt ((n : ℝ) / Real.log (n + 1))
+
+/-- The coordinate scale is positive in positive dimension.
+
+**Lean implementation helper.** -/
+lemma coordinatePsi2Scale_pos {n : ℕ} (hn : 0 < n) :
+    0 < coordinatePsi2Scale n := by
+  unfold coordinatePsi2Scale
+  apply Real.sqrt_pos.2
+  exact div_pos (Nat.cast_pos.mpr hn)
+    (Real.log_pos (by norm_num; omega))
+
+/-- Formula for a marginal of the isotropic coordinate distribution.
+
+**Lean implementation helper.** -/
+lemma coordinate_marginal_apply {n : ℕ} [NeZero n]
+    (u : EuclideanSpace ℝ (Fin n)) (i : Fin n) :
+    inner ℝ (HDP.frameRandomVector (coordinateParsevalFrame n) i) u =
+      Real.sqrt n * u i := by
+  simp [HDP.frameRandomVector, coordinateParsevalFrame,
+    inner_smul_left, EuclideanSpace.inner_single_left]
+
+/-- Explicit finite-sum `ψ₂` functional for a coordinate-law marginal.
+
+**Lean implementation helper.** -/
+lemma coordinate_marginal_psi2MGF {n : ℕ} [NeZero n]
+    (u : EuclideanSpace ℝ (Fin n)) (K : ℝ) :
+    HDP.psi2MGF
+        (fun i : Fin n =>
+          inner ℝ (HDP.frameRandomVector (coordinateParsevalFrame n) i) u)
+        (uniformOn (Set.univ : Set (Fin n))) K =
+      ENNReal.ofReal ((n : ℝ)⁻¹ *
+        ∑ i, Real.exp ((Real.sqrt n * u i) ^ 2 / K ^ 2)) := by
+  rw [psi2MGF_uniform_fin_eq_ofReal_average]
+  simp only [coordinate_marginal_apply]
+
+/-- Every unit marginal of the coordinate law satisfies the defining
+`ψ₂` bound at `coordinatePsi2Scale n`.
+
+The proof uses convexity of the exponential on each squared coordinate and
+the identity `∑ᵢ uᵢ² = 1`.
+
+**Book Exercise 3.43.** -/
+lemma coordinate_marginal_psi2MGF_at_scale_le_two {n : ℕ}
+    (hn : 2 ≤ n) (u : EuclideanSpace ℝ (Fin n)) (hu : ‖u‖ = 1) :
+    HDP.psi2MGF
+        (fun i : Fin n =>
+          inner ℝ (HDP.frameRandomVector (coordinateParsevalFrame n) i) u)
+        (uniformOn (Set.univ : Set (Fin n))) (coordinatePsi2Scale n) ≤ 2 := by
+  letI : NeZero n := ⟨by omega⟩
+  have hn0 : (0 : ℝ) < n := Nat.cast_pos.mpr (by omega)
+  have hlog : 0 < Real.log ((n : ℝ) + 1) :=
+    Real.log_pos (by norm_num; omega)
+  rw [coordinate_marginal_psi2MGF]
+  have hreal :
+      (n : ℝ)⁻¹ *
+          ∑ i, Real.exp ((Real.sqrt n * u i) ^ 2 /
+            (coordinatePsi2Scale n) ^ 2) ≤ 2 := by
+    have hsq : (coordinatePsi2Scale n) ^ 2 =
+        (n : ℝ) / Real.log ((n : ℝ) + 1) := by
+      rw [coordinatePsi2Scale,
+        Real.sq_sqrt (div_nonneg hn0.le hlog.le)]
+    have hterm : ∀ i : Fin n,
+        (Real.sqrt n * u i) ^ 2 / (coordinatePsi2Scale n) ^ 2 =
+          (u i) ^ 2 * Real.log ((n : ℝ) + 1) := by
+      intro i
+      rw [hsq, mul_pow, Real.sq_sqrt hn0.le]
+      field_simp
+    simp_rw [hterm]
+    have hui0 : ∀ i : Fin n, 0 ≤ (u i) ^ 2 := fun i => sq_nonneg _
+    have hui1 : ∀ i : Fin n, (u i) ^ 2 ≤ 1 := by
+      intro i
+      have hcoord : |u i| ≤ ‖u‖ := by
+        simpa [Real.norm_eq_abs] using PiLp.norm_apply_le u i
+      rw [hu] at hcoord
+      nlinarith [sq_abs (u i), abs_nonneg (u i)]
+    have hpoint : ∀ i : Fin n,
+        Real.exp ((u i) ^ 2 * Real.log ((n : ℝ) + 1)) ≤
+          1 + (n : ℝ) * (u i) ^ 2 := by
+      intro i
+      calc
+        Real.exp ((u i) ^ 2 * Real.log ((n : ℝ) + 1))
+            ≤ 1 + (u i) ^ 2 *
+                (Real.exp (Real.log ((n : ℝ) + 1)) - 1) :=
+          exp_mul_unitInterval_le_chord (hui0 i) (hui1 i)
+        _ = 1 + (n : ℝ) * (u i) ^ 2 := by
+          rw [Real.exp_log (by positivity)]
+          ring
+    calc
+      (n : ℝ)⁻¹ *
+          ∑ i, Real.exp ((u i) ^ 2 * Real.log ((n : ℝ) + 1))
+          ≤ (n : ℝ)⁻¹ * ∑ i, (1 + (n : ℝ) * (u i) ^ 2) := by
+            gcongr
+            exact hpoint i
+      _ = 2 := by
+        rw [Finset.sum_add_distrib]
+        simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+          nsmul_eq_mul, mul_one, ← Finset.mul_sum]
+        rw [← EuclideanSpace.real_norm_sq_eq, hu]
+        field_simp
+        norm_num
+  exact (ENNReal.ofReal_le_ofReal hreal).trans_eq (by norm_num)
+
+/-- Every unit marginal of the coordinate law has `ψ₂` norm at most the
+exact coordinate scale.
+
+**Book Exercise 3.43.** -/
+lemma coordinate_marginal_psi2Norm_le_scale {n : ℕ}
+    (hn : 2 ≤ n) (u : EuclideanSpace ℝ (Fin n)) (hu : ‖u‖ = 1) :
+    HDP.psi2Norm
+        (fun i : Fin n =>
+          inner ℝ (HDP.frameRandomVector (coordinateParsevalFrame n) i) u)
+        (uniformOn (Set.univ : Set (Fin n))) ≤ coordinatePsi2Scale n := by
+  letI : NeZero n := ⟨by omega⟩
+  exact HDP.psi2Norm_le _
+    (coordinatePsi2Scale_pos (by omega))
+    (coordinate_marginal_psi2MGF_at_scale_le_two hn u hu)
+
+/-- Exact finite-sum functional for the marginal in a standard basis
+direction.
+
+**Lean implementation helper.** -/
+lemma coordinate_basis_marginal_psi2MGF {n : ℕ} [NeZero n]
+    (j : Fin n) (K : ℝ) :
+    HDP.psi2MGF
+        (fun i : Fin n =>
+          inner ℝ (HDP.frameRandomVector (coordinateParsevalFrame n) i)
+            (coordinateParsevalFrame n j))
+        (uniformOn (Set.univ : Set (Fin n))) K =
+      ENNReal.ofReal ((n : ℝ)⁻¹ *
+        (Real.exp ((n : ℝ) / K ^ 2) + ((n : ℝ) - 1))) := by
+  rw [coordinate_marginal_psi2MGF]
+  congr 2
+  have hn0 : (0 : ℝ) ≤ n := Nat.cast_nonneg n
+  let f : Fin n → ℝ := fun i =>
+    Real.exp ((Real.sqrt n *
+      (coordinateParsevalFrame n j) i) ^ 2 / K ^ 2)
+  have hfj : f j = Real.exp ((n : ℝ) / K ^ 2) := by
+    simp [f, coordinateParsevalFrame, Real.sq_sqrt hn0]
+  have hferase : ∀ i ∈ Finset.univ.erase j, f i = 1 := by
+    intro i hi
+    have hij : i ≠ j := by
+      simpa using hi
+    simp [f, coordinateParsevalFrame, hij]
+  change ∑ i, f i = _
+  calc
+    ∑ i, f i =
+        f j + ∑ i ∈ Finset.univ.erase j, f i :=
+      (Finset.add_sum_erase Finset.univ f (Finset.mem_univ j)).symm
+    _ = Real.exp ((n : ℝ) / K ^ 2) +
+        ∑ i ∈ Finset.univ.erase j, (1 : ℝ) := by
+      rw [hfj]
+      congr 1
+      exact Finset.sum_congr rfl hferase
+    _ = Real.exp ((n : ℝ) / K ^ 2) + ((n : ℝ) - 1) := by
+      rw [Finset.sum_const, nsmul_eq_mul, mul_one,
+        Finset.card_erase_of_mem (Finset.mem_univ j),
+        Finset.card_univ, Fintype.card_fin,
+        Nat.cast_sub (Nat.one_le_iff_ne_zero.mpr (NeZero.ne n))]
+      norm_num
+
+/-- A standard-basis marginal attains the coordinate scale exactly.
+
+**Book Exercise 3.43.** -/
+theorem coordinate_basis_marginal_psi2Norm {n : ℕ}
+    (hn : 2 ≤ n) (j : Fin n) :
+    HDP.psi2Norm
+        (fun i : Fin n =>
+          inner ℝ (HDP.frameRandomVector (coordinateParsevalFrame n) i)
+            (coordinateParsevalFrame n j))
+        (uniformOn (Set.univ : Set (Fin n))) =
+      coordinatePsi2Scale n := by
+  letI : NeZero n := ⟨by omega⟩
+  have hunit : ‖coordinateParsevalFrame n j‖ = 1 := by
+    simp [coordinateParsevalFrame]
+  have hscale : 0 < coordinatePsi2Scale n :=
+    coordinatePsi2Scale_pos (by omega)
+  apply le_antisymm
+  · exact coordinate_marginal_psi2Norm_le_scale hn _ hunit
+  · rw [HDP.psi2Norm]
+    apply le_csInf
+    · exact ⟨coordinatePsi2Scale n, hscale,
+        coordinate_marginal_psi2MGF_at_scale_le_two hn _ hunit⟩
+    · intro K hK
+      have hn0 : (0 : ℝ) < n := Nat.cast_pos.mpr (by omega)
+      have hlog : 0 < Real.log ((n : ℝ) + 1) :=
+        Real.log_pos (by norm_num; omega)
+      have hmgf := hK.2
+      rw [coordinate_basis_marginal_psi2MGF j K] at hmgf
+      have hreal :
+          (n : ℝ)⁻¹ *
+            (Real.exp ((n : ℝ) / K ^ 2) + ((n : ℝ) - 1)) ≤ 2 := by
+        apply (ENNReal.ofReal_le_ofReal_iff (by norm_num : (0 : ℝ) ≤ 2)).mp
+        simpa using hmgf
+      rw [inv_mul_le_iff₀ hn0] at hreal
+      have hexp : Real.exp ((n : ℝ) / K ^ 2) ≤ (n : ℝ) + 1 := by
+        nlinarith
+      have hquot : (n : ℝ) / K ^ 2 ≤ Real.log ((n : ℝ) + 1) := by
+        have hlogexp :
+            Real.exp (Real.log ((n : ℝ) + 1)) = (n : ℝ) + 1 :=
+          Real.exp_log (by positivity)
+        rw [← hlogexp] at hexp
+        exact Real.exp_le_exp.mp hexp
+      have hKsq0 : 0 < K ^ 2 := sq_pos_of_pos hK.1
+      have hcross : (n : ℝ) ≤ K ^ 2 * Real.log ((n : ℝ) + 1) := by
+        have := (div_le_iff₀ hKsq0).mp hquot
+        nlinarith
+      have hsq :
+          (coordinatePsi2Scale n) ^ 2 ≤ K ^ 2 := by
+        rw [coordinatePsi2Scale,
+          Real.sq_sqrt (div_nonneg hn0.le hlog.le)]
+        exact (div_le_iff₀ hlog).2 hcross
+      exact (sq_le_sq₀ hscale.le hK.1.le).mp hsq
+
+/-- The isotropic coordinate distribution
+`X ∼ Unif {√n e₁, …, √n eₙ}` has the exact vector norm
+`‖X‖_{ψ₂} = √(n / log (n + 1))`.
+
+In particular, this is of order `√(n / log n)`, as asserted in the source.
+
+**Book Example 3.4.7; Exercise 3.43.** -/
+theorem coordinateDistribution_psi2NormVector {n : ℕ} (hn : 2 ≤ n) :
+    HDP.psi2NormVector
+        (HDP.frameRandomVector (coordinateParsevalFrame n))
+        (uniformOn (Set.univ : Set (Fin n))) =
+      coordinatePsi2Scale n := by
+  letI : NeZero n := ⟨by omega⟩
+  let S : Set ℝ := {r : ℝ |
+    ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+      r = HDP.psi2Norm
+        (fun i =>
+          inner ℝ (HDP.frameRandomVector (coordinateParsevalFrame n) i) u)
+        (uniformOn (Set.univ : Set (Fin n)))}
+  have hupper : ∀ r ∈ S, r ≤ coordinatePsi2Scale n := by
+    rintro r ⟨u, hu, rfl⟩
+    exact coordinate_marginal_psi2Norm_le_scale hn u hu
+  have hSbdd : BddAbove S := ⟨coordinatePsi2Scale n, hupper⟩
+  let j : Fin n := ⟨0, by omega⟩
+  have hjunit : ‖coordinateParsevalFrame n j‖ = 1 := by
+    simp [coordinateParsevalFrame]
+  have hSnonempty : S.Nonempty := by
+    exact ⟨HDP.psi2Norm
+      (fun i =>
+        inner ℝ (HDP.frameRandomVector (coordinateParsevalFrame n) i)
+          (coordinateParsevalFrame n j))
+      (uniformOn (Set.univ : Set (Fin n))),
+      coordinateParsevalFrame n j, hjunit, rfl⟩
+  rw [HDP.psi2NormVector]
+  change sSup S = coordinatePsi2Scale n
+  apply le_antisymm
+  · exact csSup_le hSnonempty hupper
+  · rw [← coordinate_basis_marginal_psi2Norm hn j]
+    apply le_csSup hSbdd
+    exact ⟨coordinateParsevalFrame n j, hjunit, rfl⟩
+
+/-- Vector `ψ₂` norm is homogeneous under deterministic scalar
+multiplication.
+
+**Lean implementation helper.** -/
+theorem psi2NormVector_const_smul
+    {Ω : Type*} {mΩ : MeasurableSpace Ω} {μ : Measure Ω}
+    [IsProbabilityMeasure μ] {n : ℕ}
+    (X : Ω → EuclideanSpace ℝ (Fin n)) (c : ℝ) :
+    HDP.psi2NormVector (fun ω => c • X ω) μ =
+      |c| * HDP.psi2NormVector X μ := by
+  let S : Set ℝ := {r : ℝ |
+    ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+      r = HDP.psi2Norm (fun ω => inner ℝ (X ω) u) μ}
+  have hset :
+      {r : ℝ |
+        ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+          r = HDP.psi2Norm
+            (fun ω => inner ℝ (c • X ω) u) μ} =
+        (fun r : ℝ => |c| * r) '' S := by
+    ext r
+    simp only [Set.mem_setOf_eq, Set.mem_image]
+    constructor
+    · rintro ⟨u, hu, rfl⟩
+      refine ⟨HDP.psi2Norm (fun ω => inner ℝ (X ω) u) μ,
+        ⟨u, hu, rfl⟩, ?_⟩
+      rw [show (fun ω => inner ℝ (c • X ω) u) =
+          (fun ω => c * inner ℝ (X ω) u) by
+        funext ω
+        simp only [inner_smul_left, starRingEnd_apply, star_trivial],
+        HDP.psi2Norm_const_mul]
+    · rintro ⟨r₀, ⟨u, hu, rfl⟩, rfl⟩
+      refine ⟨u, hu, ?_⟩
+      rw [show (fun ω => inner ℝ (c • X ω) u) =
+          (fun ω => c * inner ℝ (X ω) u) by
+        funext ω
+        simp only [inner_smul_left, starRingEnd_apply, star_trivial],
+        HDP.psi2Norm_const_mul]
+  change sSup
+      {r : ℝ |
+        ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+          r = HDP.psi2Norm (fun ω => inner ℝ (c • X ω) u) μ} =
+    |c| * sSup S
+  rw [hset]
+  rw [show (fun r : ℝ => |c| * r) '' S = |c| • S from by
+    rw [← Set.image_smul]
+    rfl]
+  rw [Real.sSup_smul_of_nonneg (abs_nonneg c)]
+  rfl
+
+/-- A vector chosen uniformly from the unscaled standard basis has exact
+vector norm `1 / √(log (n + 1))`, and therefore norm of order
+`1 / √(log n)`.
+
+**Book Exercise 3.43.** -/
+theorem standardBasisDistribution_psi2NormVector {n : ℕ} (hn : 2 ≤ n) :
+    HDP.psi2NormVector (coordinateParsevalFrame n)
+        (uniformOn (Set.univ : Set (Fin n))) =
+      1 / Real.sqrt (Real.log (n + 1)) := by
+  letI : NeZero n := ⟨by omega⟩
+  have hn0 : (0 : ℝ) < n := Nat.cast_pos.mpr (by omega)
+  have hsqrtn : 0 < Real.sqrt (n : ℝ) := Real.sqrt_pos.2 hn0
+  have hhom := psi2NormVector_const_smul
+    (μ := uniformOn (Set.univ : Set (Fin n)))
+    (coordinateParsevalFrame n) (Real.sqrt n)
+  have hframefun :
+      (fun i : Fin n => Real.sqrt n • coordinateParsevalFrame n i) =
+        HDP.frameRandomVector (coordinateParsevalFrame n) := by
+    rfl
+  rw [hframefun, abs_of_pos hsqrtn] at hhom
+  have hhom' :
+      HDP.psi2NormVector
+          (HDP.frameRandomVector (coordinateParsevalFrame n))
+          (uniformOn (Set.univ : Set (Fin n))) =
+        Real.sqrt n *
+          HDP.psi2NormVector (coordinateParsevalFrame n)
+            (uniformOn (Set.univ : Set (Fin n))) := by
+    exact hhom
+  have heq :
+      Real.sqrt n *
+          HDP.psi2NormVector (coordinateParsevalFrame n)
+            (uniformOn (Set.univ : Set (Fin n))) =
+        coordinatePsi2Scale n :=
+    hhom'.symm.trans (coordinateDistribution_psi2NormVector hn)
+  apply (mul_left_cancel₀ hsqrtn.ne')
+  rw [heq, coordinatePsi2Scale, Real.sqrt_div hn0.le]
+  ring
+
+/-- Source-facing exact form of the coordinate-distribution calculation.
+
+**Book Example 3.4.7.** -/
+theorem example_3_4_7_coordinate_distribution {n : ℕ} (hn : 2 ≤ n) :
+    HDP.psi2NormVector
+        (HDP.frameRandomVector (coordinateParsevalFrame n))
+        (uniformOn (Set.univ : Set (Fin n))) =
+      Real.sqrt ((n : ℝ) / Real.log (n + 1)) :=
+  coordinateDistribution_psi2NormVector hn
+
+/-! ## Example 3.4.8: discrete isotropic subgaussian distributions -/
+
+/-- Every atom of a subgaussian random vector with positive vector `ψ₂`
+norm has Gaussian-size mass.
+
+**Book Exercise 3.45.** -/
+theorem subgaussianVector_atom_mass_le
+    [IsProbabilityMeasure μ]
+    {n : ℕ} {X : Ω → EuclideanSpace ℝ (Fin n)}
+    (hXm : AEMeasurable X μ)
+    (hsub : HDP.SubGaussianVector X μ)
+    (hbounded : BddAbove {r : ℝ |
+      ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+        r = HDP.psi2Norm (fun ω => inner ℝ (X ω) u) μ})
+    (hK : 0 < HDP.psi2NormVector X μ)
+    (x : EuclideanSpace ℝ (Fin n)) :
+    μ.real {ω | X ω = x} ≤
+      2 * Real.exp
+        (-‖x‖ ^ 2 / (HDP.psi2NormVector X μ) ^ 2) := by
+  let K := HDP.psi2NormVector X μ
+  let Y : Ω → ℝ := fun ω => inner ℝ (X ω) x
+  have hYm : AEMeasurable Y μ := by
+    have hc : Continuous
+        (fun z : EuclideanSpace ℝ (Fin n) => inner ℝ z x) := by
+      fun_prop
+    exact hc.aemeasurable.comp_aemeasurable hXm
+  have hYsub : HDP.SubGaussian Y μ := hsub x
+  by_cases hx : x = 0
+  · subst x
+    calc
+      μ.real {ω | X ω = 0} ≤ 1 := measureReal_le_one
+      _ ≤ 2 * Real.exp (-‖(0 : EuclideanSpace ℝ (Fin n))‖ ^ 2 / K ^ 2) := by
+        simp
+  · have hxnorm : 0 < ‖x‖ := norm_pos_iff.mpr hx
+    have hpsi :
+        HDP.psi2Norm Y μ ≤ ‖x‖ * K := by
+      exact psi2Norm_marginal_le_norm_mul_vector hbounded x
+    have hK' : 0 < K := hK
+    have hright : 0 < ‖x‖ * K := mul_pos hxnorm hK'
+    by_cases hpsi0 : HDP.psi2Norm Y μ = 0
+    · have hzero : Y =ᵐ[μ] 0 :=
+        HDP.ae_eq_zero_of_psi2Norm_eq_zero hYm hYsub hpsi0
+      have hnull : μ {ω | Y ω ≠ 0} = 0 :=
+        (MeasureTheory.ae_iff.mp hzero)
+      have hatomnull : μ {ω | X ω = x} = 0 := by
+        refine measure_mono_null ?_ hnull
+        intro ω hω
+        change X ω = x at hω
+        change inner ℝ (X ω) x ≠ 0
+        rw [hω, real_inner_self_eq_norm_sq]
+        positivity
+      have hzeroReal : μ.real {ω | X ω = x} = 0 := by
+        simp [Measure.real, hatomnull]
+      rw [hzeroReal]
+      exact mul_nonneg (by norm_num) (Real.exp_pos _).le
+    · have hpsipos : 0 < HDP.psi2Norm Y μ :=
+        lt_of_le_of_ne (HDP.psi2Norm_nonneg Y μ) (Ne.symm hpsi0)
+      have htail := hYsub.tail_bound hYm
+        (t := ‖x‖ ^ 2) (sq_nonneg ‖x‖)
+      have hsubset :
+          {ω | X ω = x} ⊆ {ω | ‖x‖ ^ 2 ≤ |Y ω|} := by
+        intro ω hω
+        change X ω = x at hω
+        change ‖x‖ ^ 2 ≤ |inner ℝ (X ω) x|
+        rw [hω, real_inner_self_eq_norm_sq, abs_of_nonneg (sq_nonneg ‖x‖)]
+      have htailReal :
+          μ.real {ω | ‖x‖ ^ 2 ≤ |Y ω|} ≤
+            2 * Real.exp
+              (-(‖x‖ ^ 2) ^ 2 / (HDP.psi2Norm Y μ) ^ 2) := by
+        have ht := ENNReal.toReal_mono ENNReal.ofReal_ne_top htail
+        have hnonneg :
+            0 ≤ 2 * Real.exp
+              (-(‖x‖ ^ 2) ^ 2 / (HDP.psi2Norm Y μ) ^ 2) :=
+          mul_nonneg (by norm_num) (Real.exp_pos _).le
+        change (μ {ω | ‖x‖ ^ 2 ≤ |Y ω|}).toReal ≤ _
+        simpa only [ENNReal.toReal_ofReal hnonneg] using ht
+      have hsquare :
+          (HDP.psi2Norm Y μ) ^ 2 ≤ (‖x‖ * K) ^ 2 :=
+        (sq_le_sq₀ hpsipos.le hright.le).2 hpsi
+      have hratio :
+          ‖x‖ ^ 2 / K ^ 2 ≤
+            (‖x‖ ^ 2) ^ 2 / (HDP.psi2Norm Y μ) ^ 2 := by
+        rw [le_div_iff₀ (sq_pos_of_pos hpsipos)]
+        rw [div_mul_eq_mul_div, div_le_iff₀ (sq_pos_of_pos hK')]
+        nlinarith [sq_nonneg ‖x‖]
+      have hexp :
+          2 * Real.exp
+              (-(‖x‖ ^ 2) ^ 2 / (HDP.psi2Norm Y μ) ^ 2) ≤
+            2 * Real.exp (-‖x‖ ^ 2 / K ^ 2) := by
+        have hneg :
+            -(‖x‖ ^ 2) ^ 2 / (HDP.psi2Norm Y μ) ^ 2 ≤
+              -‖x‖ ^ 2 / K ^ 2 := by
+          calc
+            -(‖x‖ ^ 2) ^ 2 / (HDP.psi2Norm Y μ) ^ 2 =
+                -((‖x‖ ^ 2) ^ 2 / (HDP.psi2Norm Y μ) ^ 2) := by ring
+            _ ≤ -(‖x‖ ^ 2 / K ^ 2) := neg_le_neg hratio
+            _ = -‖x‖ ^ 2 / K ^ 2 := by ring
+        exact mul_le_mul_of_nonneg_left
+          (Real.exp_le_exp.mpr hneg) (by norm_num)
+      exact (measureReal_mono hsubset).trans (htailReal.trans hexp)
+
+/-- At vector `ψ₂` norm zero, every nonzero atom has mass zero. The
+explicit branch avoids division by zero.
+
+**Book Exercise 3.45.** -/
+theorem subgaussianVector_atom_mass_eq_zero_of_psi2NormVector_eq_zero
+    [IsProbabilityMeasure μ]
+    {n : ℕ} {X : Ω → EuclideanSpace ℝ (Fin n)}
+    (hXm : AEMeasurable X μ)
+    (hsub : HDP.SubGaussianVector X μ)
+    (hbounded : BddAbove {r : ℝ |
+      ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+        r = HDP.psi2Norm (fun ω => inner ℝ (X ω) u) μ})
+    (hK : HDP.psi2NormVector X μ = 0)
+    {x : EuclideanSpace ℝ (Fin n)} (hx : x ≠ 0) :
+    μ.real {ω | X ω = x} = 0 := by
+  let Y : Ω → ℝ := fun ω => inner ℝ (X ω) x
+  have hYm : AEMeasurable Y μ := by
+    have hc : Continuous
+        (fun z : EuclideanSpace ℝ (Fin n) => inner ℝ z x) := by
+      fun_prop
+    exact hc.aemeasurable.comp_aemeasurable hXm
+  have hYsub : HDP.SubGaussian Y μ := hsub x
+  have hpsiLe :
+      HDP.psi2Norm Y μ ≤
+        ‖x‖ * HDP.psi2NormVector X μ :=
+    psi2Norm_marginal_le_norm_mul_vector hbounded x
+  have hpsi0 : HDP.psi2Norm Y μ = 0 := by
+    apply le_antisymm
+    · simpa [hK] using hpsiLe
+    · exact HDP.psi2Norm_nonneg Y μ
+  have hzero : Y =ᵐ[μ] 0 :=
+    HDP.ae_eq_zero_of_psi2Norm_eq_zero hYm hYsub hpsi0
+  have hnull : μ {ω | Y ω ≠ 0} = 0 :=
+    MeasureTheory.ae_iff.mp hzero
+  have hatomnull : μ {ω | X ω = x} = 0 := by
+    refine measure_mono_null ?_ hnull
+    intro ω hω
+    change X ω = x at hω
+    change inner ℝ (X ω) x ≠ 0
+    rw [hω, real_inner_self_eq_norm_sq]
+    positivity
+  simp [Measure.real, hatomnull]
+
+/-- The two branch-safe conclusions of Exercise 3.45, packaged with the
+measurability hypothesis needed by the `ψ₂` tail theorem.
+
+**Book Exercise 3.45.** -/
+theorem subgaussianVector_atom_mass_bound
+    [IsProbabilityMeasure μ]
+    {n : ℕ} {X : Ω → EuclideanSpace ℝ (Fin n)}
+    (hXm : AEMeasurable X μ)
+    (hsub : HDP.SubGaussianVector X μ)
+    (hbounded : BddAbove {r : ℝ |
+      ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+        r = HDP.psi2Norm (fun ω => inner ℝ (X ω) u) μ}) :
+    let K := HDP.psi2NormVector X μ
+    (K = 0 → ∀ x, x ≠ 0 → μ.real {ω | X ω = x} = 0) ∧
+      (0 < K → ∀ x, μ.real {ω | X ω = x} ≤
+        2 * Real.exp (-‖x‖ ^ 2 / K ^ 2)) := by
+  dsimp only
+  constructor
+  · intro hK x hx
+    exact subgaussianVector_atom_mass_eq_zero_of_psi2NormVector_eq_zero
+      hXm hsub hbounded hK hx
+  · intro hK x
+    exact subgaussianVector_atom_mass_le hXm hsub hbounded hK x
+
+/-- A nonzero-dimensional isotropic subgaussian random vector has strictly
+positive vector `ψ₂` norm. This discharges the degenerate branch required
+when Exercise 3.45 is used in Exercise 3.46.
+
+**Lean implementation helper.** -/
+theorem psi2NormVector_pos_of_isotropic_subgaussian
+    [IsProbabilityMeasure μ]
+    {n : ℕ} (hn : 0 < n)
+    {X : Ω → EuclideanSpace ℝ (Fin n)}
+    (hXm : AEMeasurable X μ)
+    (hsub : HDP.SubGaussianVector X μ)
+    (hbounded : BddAbove {r : ℝ |
+      ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+        r = HDP.psi2Norm (fun ω => inner ℝ (X ω) u) μ})
+    (hiso : HDP.IsIsotropic X μ) :
+    0 < HDP.psi2NormVector X μ := by
+  let i : Fin n := ⟨0, hn⟩
+  let e : EuclideanSpace ℝ (Fin n) := EuclideanSpace.single i 1
+  let Y : Ω → ℝ := fun ω => inner ℝ (X ω) e
+  have he : ‖e‖ = 1 := by simp [e]
+  have hYm : AEMeasurable Y μ := by
+    have hc : Continuous
+        (fun z : EuclideanSpace ℝ (Fin n) => inner ℝ z e) := by
+      fun_prop
+    exact hc.aemeasurable.comp_aemeasurable hXm
+  have hYsub : HDP.SubGaussian Y μ := hsub e
+  have hpsiLe :
+      HDP.psi2Norm Y μ ≤ HDP.psi2NormVector X μ :=
+    HDP.psi2Norm_marginal_le_vector hbounded he
+  have hKnonneg : 0 ≤ HDP.psi2NormVector X μ :=
+    (HDP.psi2Norm_nonneg Y μ).trans hpsiLe
+  refine lt_of_le_of_ne hKnonneg ?_
+  intro hKzero
+  have hpsi0 : HDP.psi2Norm Y μ = 0 := by
+    apply le_antisymm
+    · simpa [hKzero] using hpsiLe
+    · exact HDP.psi2Norm_nonneg Y μ
+  have hYzero : Y =ᵐ[μ] 0 :=
+    HDP.ae_eq_zero_of_psi2Norm_eq_zero hYm hYsub hpsi0
+  have hcoordzero : (fun ω => X ω i) =ᵐ[μ] 0 := by
+    filter_upwards [hYzero] with ω hω
+    simpa [Y, e, EuclideanSpace.inner_single_right] using hω
+  have hsquarezero : (fun ω => (X ω i) ^ 2) =ᵐ[μ] 0 := by
+    filter_upwards [hcoordzero] with ω hω
+    rw [hω]
+    norm_num
+  have hintegralzero : ∫ ω, (X ω i) ^ 2 ∂μ = 0 := by
+    rw [integral_congr_ae hsquarezero]
+    simp
+  have hone := hiso.secondMoment_coord i
+  rw [hintegralzero] at hone
+  norm_num at hone
+
+/-- Shannon entropy (in nats) of a finite probability vector.
+
+**Book Exercise 3.46.** -/
+noncomputable def finiteShannonEntropy {ι : Type*} [Fintype ι]
+    (p : ι → ℝ) : ℝ :=
+  ∑ i, Real.negMulLog (p i)
+
+/-- A finite probability vector has entropy at most the logarithm of the
+number of indices.
+
+**Book Exercise 3.46(a).** -/
+theorem finiteShannonEntropy_le_log_card
+    {ι : Type*} [Fintype ι]
+    (p : ι → ℝ) (hp : ∀ i, 0 ≤ p i) (hpsum : ∑ i, p i = 1) :
+    finiteShannonEntropy p ≤ Real.log (Fintype.card ι) := by
+  have hcard : 0 < Fintype.card ι := by
+    by_contra h
+    have hc0 : Fintype.card ι = 0 := Nat.eq_zero_of_not_pos h
+    have hucard : (Finset.univ : Finset ι).card = 0 := by
+      simpa using hc0
+    have hu : (Finset.univ : Finset ι) = ∅ :=
+      Finset.card_eq_zero.mp hucard
+    rw [hu] at hpsum
+    norm_num at hpsum
+  let N : ℝ := Fintype.card ι
+  have hN : 0 < N := by
+    dsimp [N]
+    exact_mod_cast hcard
+  have hweights :
+      ∑ _i : ι, N⁻¹ = (1 : ℝ) := by
+    simp [N, hN.ne']
+  have hjensen := Real.concaveOn_negMulLog.le_map_sum
+    (t := Finset.univ) (w := fun _i : ι => N⁻¹) (p := p)
+    (fun _ _ => inv_nonneg.mpr hN.le) hweights
+    (fun i _ => hp i)
+  have havg : ∑ i : ι, N⁻¹ • p i = N⁻¹ := by
+    simp only [smul_eq_mul, ← Finset.mul_sum, hpsum, mul_one]
+  rw [havg] at hjensen
+  have hscaled := mul_le_mul_of_nonneg_left hjensen hN.le
+  calc
+    finiteShannonEntropy p =
+        N * ∑ i : ι, N⁻¹ • Real.negMulLog (p i) := by
+          rw [finiteShannonEntropy, Finset.mul_sum]
+          apply Finset.sum_congr rfl
+          intro i hi
+          simp only [smul_eq_mul]
+          field_simp
+    _ ≤ N * Real.negMulLog N⁻¹ := hscaled
+    _ = Real.log N := by
+          rw [Real.negMulLog, Real.log_inv]
+          field_simp
+    _ = Real.log (Fintype.card ι) := rfl
+
+/-- The diagonal identities in isotropy imply that the weighted squared
+Euclidean norms sum to the ambient dimension.
+
+**Lean implementation helper.** -/
+theorem weighted_norm_sq_eq_dimension_of_isotropic
+    {ι : Type*} [Fintype ι] {n : ℕ}
+    (p : ι → ℝ) (x : ι → EuclideanSpace ℝ (Fin n))
+    (hiso : ∀ j k, ∑ i, p i * (x i j * x i k) =
+      if j = k then 1 else 0) :
+    ∑ i, p i * ‖x i‖ ^ 2 = n := by
+  calc
+    ∑ i, p i * ‖x i‖ ^ 2 =
+        ∑ i, ∑ j : Fin n, p i * (x i j * x i j) := by
+          apply Finset.sum_congr rfl
+          intro i hi
+          rw [EuclideanSpace.real_norm_sq_eq]
+          rw [Finset.mul_sum]
+          apply Finset.sum_congr rfl
+          intro j hj
+          ring
+    _ = ∑ j : Fin n, ∑ i, p i * (x i j * x i j) := by
+          rw [Finset.sum_comm]
+    _ = ∑ _j : Fin n, 1 := by
+          apply Finset.sum_congr rfl
+          intro j hj
+          simpa using hiso j j
+    _ = n := by simp
+
+/-- A Gaussian atom bound and isotropy force the source entropy lower
+bound.
+
+**Book Exercise 3.46(b).** -/
+theorem isotropic_finiteShannonEntropy_lower_bound
+    {ι : Type*} [Fintype ι] {n : ℕ}
+    (p : ι → ℝ) (hp : ∀ i, 0 ≤ p i) (hpsum : ∑ i, p i = 1)
+    (x : ι → EuclideanSpace ℝ (Fin n))
+    (hiso : ∀ j k, ∑ i, p i * (x i j * x i k) =
+      if j = k then 1 else 0)
+    {K : ℝ} (_hK : 0 < K)
+    (hatom : ∀ i, p i ≤ 2 * Real.exp (-‖x i‖ ^ 2 / K ^ 2)) :
+    n / K ^ 2 - Real.log 2 ≤ finiteShannonEntropy p := by
+  have hpoint : ∀ i,
+      p i * (‖x i‖ ^ 2 / K ^ 2 - Real.log 2) ≤
+        Real.negMulLog (p i) := by
+    intro i
+    by_cases hpi : p i = 0
+    · simp [hpi]
+    · have hpipos : 0 < p i := lt_of_le_of_ne (hp i) (Ne.symm hpi)
+      have hrhspos :
+          0 < 2 * Real.exp (-‖x i‖ ^ 2 / K ^ 2) := by positivity
+      have hlog := Real.log_le_log hpipos (hatom i)
+      have hlogrhs :
+          Real.log (2 * Real.exp (-‖x i‖ ^ 2 / K ^ 2)) =
+            Real.log 2 - ‖x i‖ ^ 2 / K ^ 2 := by
+        rw [Real.log_mul (by norm_num : (2 : ℝ) ≠ 0)
+          (Real.exp_ne_zero _), Real.log_exp]
+        ring
+      rw [hlogrhs] at hlog
+      rw [Real.negMulLog]
+      nlinarith [mul_le_mul_of_nonneg_left hlog (hp i)]
+  have hsum : (∑ i, p i * (‖x i‖ ^ 2 / K ^ 2 - Real.log 2)) ≤
+      ∑ i, Real.negMulLog (p i) :=
+    Finset.sum_le_sum (fun i _ => hpoint i)
+  have hnorm := weighted_norm_sq_eq_dimension_of_isotropic p x hiso
+  rw [finiteShannonEntropy]
+  calc
+    n / K ^ 2 - Real.log 2 =
+        ∑ i, p i * (‖x i‖ ^ 2 / K ^ 2 - Real.log 2) := by
+          symm
+          calc
+            ∑ i, p i * (‖x i‖ ^ 2 / K ^ 2 - Real.log 2) =
+                ∑ i, (p i * ‖x i‖ ^ 2 / K ^ 2 -
+                  p i * Real.log 2) := by
+                    apply Finset.sum_congr rfl
+                    intro i hi
+                    ring
+            _ = (∑ i, p i * ‖x i‖ ^ 2) / K ^ 2 -
+                (∑ i, p i) * Real.log 2 := by
+                  rw [Finset.sum_sub_distrib, Finset.sum_div,
+                    Finset.sum_mul]
+            _ = n / K ^ 2 - Real.log 2 := by
+                  rw [hnorm, hpsum, one_mul]
+    _ ≤ ∑ i, Real.negMulLog (p i) := hsum
+
+/-- A finite isotropic distribution satisfying the subgaussian atom
+estimate has exponentially large support.
+
+**Book Exercise 3.46(c).** -/
+theorem isotropic_support_card_lower_bound
+    {ι : Type*} [Fintype ι] {n : ℕ}
+    (p : ι → ℝ) (hp : ∀ i, 0 ≤ p i) (hpsum : ∑ i, p i = 1)
+    (x : ι → EuclideanSpace ℝ (Fin n))
+    (hiso : ∀ j k, ∑ i, p i * (x i j * x i k) =
+      if j = k then 1 else 0)
+    {K : ℝ} (hK : 0 < K)
+    (hatom : ∀ i, p i ≤ 2 * Real.exp (-‖x i‖ ^ 2 / K ^ 2)) :
+    (1 / 2 : ℝ) * Real.exp (n / K ^ 2) ≤ Fintype.card ι := by
+  have hlower := isotropic_finiteShannonEntropy_lower_bound
+    p hp hpsum x hiso hK hatom
+  have hupper := finiteShannonEntropy_le_log_card p hp hpsum
+  have hlog :
+      n / K ^ 2 - Real.log 2 ≤ Real.log (Fintype.card ι) :=
+    hlower.trans hupper
+  have hcard : 0 < Fintype.card ι := by
+    by_contra h
+    have hc0 : Fintype.card ι = 0 := Nat.eq_zero_of_not_pos h
+    have hucard : (Finset.univ : Finset ι).card = 0 := by
+      simpa using hc0
+    have hu : (Finset.univ : Finset ι) = ∅ :=
+      Finset.card_eq_zero.mp hucard
+    rw [hu] at hpsum
+    norm_num at hpsum
+  have hexp := Real.exp_le_exp.mpr hlog
+  have hcardR : (0 : ℝ) < Fintype.card ι := by exact_mod_cast hcard
+  rw [Real.exp_sub, Real.exp_log (by norm_num : (0 : ℝ) < 2),
+    Real.exp_log hcardR] at hexp
+  simpa [div_eq_mul_inv, mul_comm] using hexp
+
+/-- The entropy and support conclusions of Exercise 3.46, packaged together
+for a finite discrete law.
+
+**Book Exercise 3.46(b,c).** -/
+theorem isotropic_finiteShannonEntropy_and_support_lower_bounds
+    {ι : Type*} [Fintype ι] {n : ℕ}
+    (p : ι → ℝ) (hp : ∀ i, 0 ≤ p i) (hpsum : ∑ i, p i = 1)
+    (x : ι → EuclideanSpace ℝ (Fin n))
+    (hiso : ∀ j k, ∑ i, p i * (x i j * x i k) =
+      if j = k then 1 else 0)
+    {K : ℝ} (hK : 0 < K)
+    (hatom : ∀ i, p i ≤ 2 * Real.exp (-‖x i‖ ^ 2 / K ^ 2)) :
+    n / K ^ 2 - Real.log 2 ≤ finiteShannonEntropy p ∧
+      (1 / 2 : ℝ) * Real.exp (n / K ^ 2) ≤ Fintype.card ι :=
+  ⟨isotropic_finiteShannonEntropy_lower_bound
+      p hp hpsum x hiso hK hatom,
+    isotropic_support_card_lower_bound
+      p hp hpsum x hiso hK hatom⟩
+
+/-- A finite-support formulation of the discrete-distribution example. If
+the points of the finite probability space have positive mass and `X` is
+injective, they are exactly the distinct values in the support of `X`.
+Isotropy and subgaussianity force both the entropy bound
+`n / ‖X‖_{ψ₂}² - log 2` and the support-size bound
+`(1/2) exp (n / ‖X‖_{ψ₂}²)`.
+
+**Book Example 3.4.8; Exercise 3.46(b,c).** -/
+theorem isotropic_subgaussian_finite_support_entropy_and_card
+    [Fintype Ω] [MeasurableSingletonClass Ω] [IsProbabilityMeasure μ]
+    {n : ℕ} (hn : 0 < n)
+    {X : Ω → EuclideanSpace ℝ (Fin n)}
+    (hXm : AEMeasurable X μ)
+    (hsub : HDP.SubGaussianVector X μ)
+    (hbounded : BddAbove {r : ℝ |
+      ∃ u : EuclideanSpace ℝ (Fin n), ‖u‖ = 1 ∧
+        r = HDP.psi2Norm (fun ω => inner ℝ (X ω) u) μ})
+    (hiso : HDP.IsIsotropic X μ)
+    (hXinj : Function.Injective X)
+    (hpositive : ∀ ω, 0 < μ.real {ω}) :
+    let p : Ω → ℝ := fun ω => μ.real {ω}
+    let K := HDP.psi2NormVector X μ
+    n / K ^ 2 - Real.log 2 ≤ finiteShannonEntropy p ∧
+      (1 / 2 : ℝ) * Real.exp (n / K ^ 2) ≤ Fintype.card Ω := by
+  let p : Ω → ℝ := fun ω => μ.real {ω}
+  let K := HDP.psi2NormVector X μ
+  have hp : ∀ ω, 0 ≤ p ω := fun ω => (hpositive ω).le
+  have hpsum : ∑ ω, p ω = 1 := by
+    have h := MeasureTheory.sum_measureReal_singleton
+      (μ := μ) (Finset.univ : Finset Ω)
+    convert h using 1
+    all_goals simp
+  have hisoSum : ∀ j k, ∑ ω, p ω * (X ω j * X ω k) =
+      if j = k then 1 else 0 := by
+    intro j k
+    have hcoord := HDP.isIsotropic_iff.mp hiso j k
+    have hint : Integrable (fun ω => X ω j * X ω k) μ :=
+      Integrable.of_finite
+    rw [MeasureTheory.integral_fintype hint] at hcoord
+    simpa [p, smul_eq_mul] using hcoord
+  have hK : 0 < K :=
+    psi2NormVector_pos_of_isotropic_subgaussian
+      hn hXm hsub hbounded hiso
+  have hatom : ∀ ω,
+      p ω ≤ 2 * Real.exp (-‖X ω‖ ^ 2 / K ^ 2) := by
+    intro ω
+    have hfiber : {ω' | X ω' = X ω} = ({ω} : Set Ω) := by
+      ext ω'
+      simp only [Set.mem_setOf_eq, Set.mem_singleton_iff]
+      exact hXinj.eq_iff
+    have hbound := subgaussianVector_atom_mass_le
+      hXm hsub hbounded hK (X ω)
+    simpa [p, K, hfiber] using hbound
+  exact isotropic_finiteShannonEntropy_and_support_lower_bounds
+    p hp hpsum X hisoSum hK hatom
 
 end
 
@@ -10286,7 +11755,7 @@ noncomputable def graphCutLabel {V : Type*} (s : Set V) (i : V) : ℝ := by
 graph cut. The proof expands the ordered adjacency sum and applies the
 degree-sum formula to the bipartite graph of crossing edges.
 
-**Book Equations (3.31)–(3.32).** -/
+**Book Equation (3.31), followed by the maximum-cut formulation in Equation (3.32).** -/
 theorem graphCutObjective_eq_cutValue
     {V : Type*} [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj]
     (s : Set V) :
@@ -10340,7 +11809,7 @@ theorem graphCutObjective_eq_cutValue
 
 /-- The cut SDP objective is continuous in a finite family of vectors.
 
-**Lean implementation helper for Book Equation (3.33).** -/
+**Lean implementation helper.** -/
 theorem continuous_sdpCutObjective
     {ι κ : Type*} [Fintype ι] [Fintype κ]
     (A : Matrix ι ι ℝ) :
@@ -10369,14 +11838,18 @@ theorem sdpCutObjective_attains
       (continuous_sdpCutObjective A).continuousOn
   exact ⟨X, hX, fun Y hY => hmax hY⟩
 
-/-- A chosen optimizer for the graph semidefinite program (3.33). -/
+/-- A chosen optimizer for the graph semidefinite program (3.33).
+
+**Book Equation (3.33).** -/
 noncomputable def graphSDPSolution
     {V : Type*} [Fintype V] [Nonempty V]
     (G : SimpleGraph V) [DecidableRel G.Adj] :
     V → EuclideanSpace ℝ V :=
   Classical.choose (sdpCutObjective_attains (G.adjMatrix ℝ))
 
-/-- The graph SDP value `sdp(G)` from (3.33), evaluated at a chosen optimizer. -/
+/-- The graph SDP value `sdp(G)` from (3.33), evaluated at a chosen optimizer.
+
+**Book Equation (3.33).** -/
 noncomputable def graphSDPValue
     {V : Type*} [Fintype V] [Nonempty V]
     (G : SimpleGraph V) [DecidableRel G.Adj] : ℝ :=
@@ -10513,7 +11986,7 @@ theorem cut_embedding_preserves_objective
 
 /-- The graph SDP (3.33) is a relaxation of maximum cut (3.32).
 
-**Book Equations (3.32)–(3.33).** -/
+**Book Equation (3.32), together with the SDP relaxation in Equation (3.33).** -/
 theorem graphMaxCut_le_graphSDPValue
     {V : Type*} [Fintype V] [Nonempty V]
     (G : SimpleGraph V) [DecidableRel G.Adj] :
@@ -10790,7 +12263,9 @@ theorem goemans_williamson_expected_guarantee
         rw [Real.arccos_eq_pi_div_two_sub_arcsin]
         field_simp
 
-/-- The actual graph cut produced by Gaussian hyperplane rounding. -/
+/-- The actual graph cut produced by Gaussian hyperplane rounding.
+
+**Book Equation (3.34).** -/
 noncomputable def gaussianRoundedCutValue
     {V : Type*} [Fintype V] (G : SimpleGraph V)
     (X : V → EuclideanSpace ℝ V) (g : EuclideanSpace ℝ V) : ℝ :=
@@ -10800,7 +12275,7 @@ noncomputable def gaussianRoundedCutValue
 /-- Gaussian hyperplane labels are precisely the labels of their associated
 vertex subset, so the rounded matrix objective is an actual graph cut.
 
-**Book Equations (3.31) and (3.34).** -/
+**Book Equation (3.34), interpreted through the cut identity in Equation (3.31).** -/
 theorem gaussianRoundedCutValue_eq_objective
     {V : Type*} [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj]
     (X : V → EuclideanSpace ℝ V) (g : EuclideanSpace ℝ V) :

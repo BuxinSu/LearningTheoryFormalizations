@@ -15,7 +15,5 @@ import HighDimensionalProbability.Chapter9_DeviationsOfRandomMatricesOnSets
 Root module for the formalization of Roman Vershynin's *High-Dimensional
 Probability* (second edition), the Appetizer and Chapters 1 through 9.
 
-This publication imports only the consolidated Appetizer and Chapter 1–9
-modules. Non-load-bearing exercise directories and the unresolved appendix
-subtree are intentionally excluded.
+This publication imports the consolidated Appetizer and Chapter 1–9 modules.
 -/
