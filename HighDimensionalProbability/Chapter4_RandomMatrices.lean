@@ -49,7 +49,8 @@ import Mathlib.MeasureTheory.Integral.Pi
 
 ## Contents
 
-- §4.1 A quick refresher on linear algebra — SVD (Theorem 4.1.1),
+- §4.1 A quick refresher on linear algebra — compact and matrix-form SVD
+  (Theorem 4.1.1, Remark 4.1.3, and Equation (4.4)),
   orthogonal projections from orthonormal columns (Example 4.1.5),
   attained general induced norms and their bilinear dual maxima (Remark 4.1.9),
   Courant--Fischer (Theorem 4.1.6), Eckart--Young--Mirsky (Theorem 4.1.13),
@@ -522,6 +523,141 @@ theorem RealSVD.apply_right {m n : ℕ} {A : Matrix (Fin m) (Fin n) ℝ}
         rw [d.right_orthonormal.2 hij]
         simp
       · simp
+
+/-- The matrix whose columns are the vectors of an orthonormal basis.
+
+**Lean implementation helper.** -/
+noncomputable def orthonormalBasisMatrix {n : ℕ}
+    (b : OrthonormalBasis (Fin n) ℝ (EuclideanSpace ℝ (Fin n))) :
+    Matrix (Fin n) (Fin n) ℝ :=
+  fun i j => WithLp.ofLp (b j) i
+
+/-- The column matrix of an orthonormal basis is orthogonal.
+
+**Lean implementation helper.** -/
+theorem orthonormalBasisMatrix_mem_orthogonal {n : ℕ}
+    (b : OrthonormalBasis (Fin n) ℝ (EuclideanSpace ℝ (Fin n))) :
+    orthonormalBasisMatrix b ∈ Matrix.orthogonalGroup (Fin n) ℝ := by
+  rw [Matrix.mem_orthogonalGroup_iff]
+  ext i j
+  rw [Matrix.mul_apply, Matrix.transpose_apply, Matrix.one_apply]
+  simpa [orthonormalBasisMatrix, PiLp.inner_apply, RCLike.inner_apply]
+    using b.orthonormal i j
+
+/-- Extend the left singular family of a compact SVD to an orthonormal basis
+of its ambient Euclidean space.
+
+**Lean implementation helper.** -/
+private theorem exists_leftSingularOrthonormalBasis
+    {m n : ℕ} {A : Matrix (Fin m) (Fin n) ℝ} (s : RealSVD A) :
+    ∃ b : OrthonormalBasis (Fin m) ℝ (EuclideanSpace ℝ (Fin m)),
+      ∀ k : Fin (min m n),
+        b (Fin.castLE (Nat.min_le_left m n) k) = s.left k := by
+  classical
+  let e : Fin (min m n) → Fin m := Fin.castLE (Nat.min_le_left m n)
+  let w : Fin m → EuclideanSpace ℝ (Fin m) := fun j =>
+    if h : (j : ℕ) < min m n then s.left ⟨j, h⟩ else 0
+  let S : Set (Fin m) := {j | (j : ℕ) < min m n}
+  have hwe (k : Fin (min m n)) : w (e k) = s.left k := by
+    simp [w, e, Fin.castLE, k.isLt]
+  have hON : Orthonormal ℝ (S.restrict w) := by
+    rw [orthonormal_iff_ite]
+    rintro ⟨i, hi⟩ ⟨j, hj⟩
+    have hwi : S.restrict w ⟨i, hi⟩ = s.left ⟨i, hi⟩ := by
+      simp [w, S] at hi ⊢
+      exact hi
+    have hwj : S.restrict w ⟨j, hj⟩ = s.left ⟨j, hj⟩ := by
+      simp [w, S] at hj ⊢
+      exact hj
+    rw [hwi, hwj, orthonormal_iff_ite.mp s.left_orthonormal]
+    simp only [Fin.mk.injEq, Subtype.mk.injEq]
+  obtain ⟨b, hb⟩ := hON.exists_orthonormalBasis_extension_of_card_eq
+    (by rw [finrank_euclideanSpace_fin, Fintype.card_fin])
+  refine ⟨b, fun k => ?_⟩
+  rw [hb (e k) (by simp [S, e, Fin.castLE, k.isLt]), hwe]
+
+/-- The rectangular diagonal matrix whose first `min m n` diagonal entries
+are the singular values of `s`.
+
+**Book Remark 4.1.3; Equation (4.4).** -/
+noncomputable def rectangularSingularValueMatrix
+    {m n : ℕ} {A : Matrix (Fin m) (Fin n) ℝ} (s : RealSVD A) :
+    Matrix (Fin m) (Fin n) ℝ :=
+  ∑ k : Fin (min m n), Matrix.single
+    (Fin.castLE (Nat.min_le_left m n) k)
+    (Fin.castLE (Nat.min_le_right m n) k) (s.singularValue k)
+
+/-- Multiplying a coordinate matrix unit between two orthonormal-basis
+matrices produces the corresponding outer product.
+
+**Lean implementation helper.** -/
+private lemma orthonormalBasisMatrix_single_mul
+    {m n : ℕ}
+    (bU : OrthonormalBasis (Fin m) ℝ (EuclideanSpace ℝ (Fin m)))
+    (bV : OrthonormalBasis (Fin n) ℝ (EuclideanSpace ℝ (Fin n)))
+    (a : Fin m) (b : Fin n) (c : ℝ) :
+    orthonormalBasisMatrix bU * Matrix.single a b c *
+        (orthonormalBasisMatrix bV)ᵀ =
+      c • outerMatrix (bU a) (bV b) := by
+  classical
+  ext i j
+  simp [Matrix.mul_apply, orthonormalBasisMatrix, outerMatrix,
+    Matrix.vecMulVec_apply]
+
+/-- Every real rectangular matrix has the literal matrix-form SVD
+`A = U Σ Vᵀ`: the compact singular families extend to orthonormal bases,
+`U,V` are square orthogonal matrices, and `Σ` is the rectangular diagonal
+matrix of singular values.
+
+**Book Remark 4.1.3; Equation (4.4).** -/
+theorem exists_matrixFormSVD {m n : ℕ}
+    (A : Matrix (Fin m) (Fin n) ℝ) :
+    ∃ s : RealSVD A,
+      ∃ bU : OrthonormalBasis (Fin m) ℝ (EuclideanSpace ℝ (Fin m)),
+      ∃ bV : OrthonormalBasis (Fin n) ℝ (EuclideanSpace ℝ (Fin n)),
+        (∀ k : Fin (min m n),
+          bU (Fin.castLE (Nat.min_le_left m n) k) = s.left k) ∧
+        (∀ k : Fin (min m n),
+          bV (Fin.castLE (Nat.min_le_right m n) k) = s.right k) ∧
+        orthonormalBasisMatrix bU ∈
+          Matrix.orthogonalGroup (Fin m) ℝ ∧
+        orthonormalBasisMatrix bV ∈
+          Matrix.orthogonalGroup (Fin n) ℝ ∧
+        A = orthonormalBasisMatrix bU *
+          rectangularSingularValueMatrix s *
+          (orthonormalBasisMatrix bV)ᵀ := by
+  classical
+  let s := Classical.choice (exists_singularValueDecomposition A)
+  obtain ⟨bU, hbU⟩ := exists_leftSingularOrthonormalBasis s
+  have hright :
+      ∃ b : OrthonormalBasis (Fin n) ℝ (EuclideanSpace ℝ (Fin n)),
+        ∀ k : Fin (min m n),
+          b (Fin.castLE (Nat.min_le_right m n) k) = s.right k := by
+    let st : RealSVD Aᵀ := {
+      left := s.right
+      right := s.left
+      singularValue := s.singularValue
+      left_orthonormal := s.right_orthonormal
+      right_orthonormal := s.left_orthonormal
+      singularValue_nonneg := s.singularValue_nonneg
+      singularValue_antitone := s.singularValue_antitone
+      eq_sum_outer := by
+        rw [show min n m = min m n by omega]
+        rw [← s.eq_sum_outer]
+        simp }
+    obtain ⟨b, hb⟩ := exists_leftSingularOrthonormalBasis st
+    refine ⟨b, fun k => ?_⟩
+    simpa [st] using hb k
+  obtain ⟨bV, hbV⟩ := hright
+  refine ⟨s, bU, bV, hbU, hbV,
+    orthonormalBasisMatrix_mem_orthogonal bU,
+    orthonormalBasisMatrix_mem_orthogonal bV, ?_⟩
+  rw [s.eq_sum_outer]
+  simp only [rectangularSingularValueMatrix, Matrix.mul_sum,
+    Matrix.sum_mul]
+  apply Finset.sum_congr rfl
+  intro k _
+  rw [orthonormalBasisMatrix_single_mul, hbU, hbV]
 
 /-- Canonical source-numbered public name for Theorem 4.1.1. -/
 alias theorem_4_1_1 := exists_singularValueDecomposition

@@ -95,7 +95,7 @@ The Vershynin development formalizes the main arc of high-dimensional probabilit
 - covering numbers, Dudley bounds, and generic chaining;
 - matrix deviation and applications to embeddings, recovery, and restricted isometries.
 
-Its published correspondence table records 586 verified source results. See the [project README](HighDimensionalProbability/README.md) for the complete chapter-by-chapter map.
+Its published correspondence table records 587 verified source results. See the [project README](HighDimensionalProbability/README.md) for the complete chapter-by-chapter map.
 
 ## Namespace conventions
 
