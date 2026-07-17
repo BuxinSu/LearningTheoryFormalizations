@@ -30,6 +30,7 @@ import Mathlib.Probability.StrongLaw
 import Mathlib.Probability.CentralLimitTheorem
 import Mathlib.Probability.ProbabilityMassFunction.Integrals
 import Mathlib.Analysis.SpecialFunctions.Stirling
+import HighDimensionalProbability.Prelude.RobbinsStirling
 import Mathlib.Analysis.SpecialFunctions.Gamma.Basic
 import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
 import Mathlib.Data.Nat.Factorial.Basic
