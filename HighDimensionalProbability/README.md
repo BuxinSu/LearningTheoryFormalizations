@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **602 verified results** |
+| Book → Lean correspondence | **603 verified results** |
 | Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,432 theorems, 1,006 lemmas, and 794 ordinary definitions across the shared foundations and consolidated modules |
+| Core declarations | 2,436 theorems, 1,006 lemmas, and 794 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -164,6 +164,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Example 1.7.4; (1.25) | Bernoulli/binomial moments and de Moivre--Laplace convergence. | `HDP.IsBernoulli` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | Definition 1.7.5; (1.26) | Poisson distribution and PMF. | `HDP.Chapter1.IsPoissonRV` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | Lemma 1.7.7 | Stirling asymptotic. | `HDP.Chapter1.stirling_approximation` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
+| Notes after Lemma 1.7.7 | Robbins' exact global two-sided nonasymptotic Stirling estimate. | `HDP.Chapter1.factorial_robbins_two_sided` | [`Prelude/RobbinsStirling.lean`](Prelude/RobbinsStirling.lean) |
 | (1.27) | Fixed-parameter Poisson PMF asymptotic. | `HDP.Chapter1.poisson_pmf_asymptotic` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | Lemma 1.7.8; (1.28) | Elementary lower/upper factorial bounds. | `HDP.Chapter1.factorial_lower_bound` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
 | (1.29) | Log-factorial sum and integral upper estimate. | `HDP.Chapter1.log_factorial_eq_sum` | [`Chapter1_AnalysisAndProbabilityRefresher.lean`](Chapter1_AnalysisAndProbabilityRefresher.lean) |
