@@ -51,6 +51,7 @@ import Mathlib.MeasureTheory.Integral.Pi
 
 - §4.1 A quick refresher on linear algebra — SVD (Theorem 4.1.1),
   orthogonal projections from orthonormal columns (Example 4.1.5),
+  attained general induced norms and their bilinear dual maxima (Remark 4.1.9),
   Courant--Fischer (Theorem 4.1.6), Eckart--Young--Mirsky (Theorem 4.1.13),
   and spectral perturbation (Lemma 4.1.14 and Theorem 4.1.15)
 - §4.2 Nets, covering, and packing — Definitions 4.2.1--4.2.4,
@@ -3065,6 +3066,97 @@ theorem definition_4_1_8 {m n : ℕ} [Nonempty (Fin m)] [Nonempty (Fin n)]
       IsGreatest (operatorUnitSphereValues A) (HDP.matrixOpNorm A) ∧
       IsGreatest (operatorBilinearUnitValues A) (HDP.matrixOpNorm A) :=
   operatorNorm_fourMaxima A
+
+/-- Every induced finite-dimensional `ℓᵖ → ℓᑫ` norm is attained on its
+closed unit ball, including the endpoint exponents `1` and `∞`.
+
+**Book Remark 4.1.9.** -/
+theorem matrixLpToLpNorm_attained (p q : ℝ≥0∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    {m n : Type*} [Fintype m] [Fintype n] [DecidableEq n]
+    (A : Matrix m n ℝ) :
+    ∃ x : WithLp p (n → ℝ), ‖x‖ ≤ 1 ∧
+      ‖Matrix.toLpLin p q A x‖ = matrixLpToLpNorm p q A := by
+  let L := (Matrix.toLpLin p q A).toContinuousLinearMap
+  let K : Set (WithLp p (n → ℝ)) := Metric.closedBall 0 1
+  have hK : IsCompact K := ProperSpace.isCompact_closedBall 0 1
+  have hKne : K.Nonempty := ⟨0, by simp [K]⟩
+  obtain ⟨x, hxK, hxmax⟩ :=
+    hK.exists_isMaxOn hKne L.continuous.norm.continuousOn
+  have hx : ‖x‖ ≤ 1 := by
+    simpa [K, Metric.mem_closedBall] using hxK
+  have hmax0 : 0 ≤ ‖L x‖ := norm_nonneg _
+  have hnorm_le : ‖L‖ ≤ ‖L x‖ := by
+    apply L.opNorm_le_bound hmax0
+    intro y
+    by_cases hy : y = 0
+    · subst y
+      simp
+    · have hypos : 0 < ‖y‖ := norm_pos_iff.mpr hy
+      let z : WithLp p (n → ℝ) := ‖y‖⁻¹ • y
+      have hzK : z ∈ K := by
+        simp [K, z, Metric.mem_closedBall, norm_smul,
+          inv_mul_cancel₀ hypos.ne']
+      have hzmax := hxmax hzK
+      change ‖L z‖ ≤ ‖L x‖ at hzmax
+      have hscale : ‖L z‖ = ‖y‖⁻¹ * ‖L y‖ := by
+        simp [z, norm_smul]
+      rw [hscale] at hzmax
+      calc
+        ‖L y‖ = ‖y‖ * (‖y‖⁻¹ * ‖L y‖) := by field_simp
+        _ ≤ ‖y‖ * ‖L x‖ :=
+          mul_le_mul_of_nonneg_left hzmax (norm_nonneg y)
+        _ = ‖L x‖ * ‖y‖ := mul_comm _ _
+  have hmax_le : ‖L x‖ ≤ ‖L‖ := by
+    calc
+      ‖L x‖ ≤ ‖L‖ * ‖x‖ := L.le_opNorm x
+      _ ≤ ‖L‖ * 1 := mul_le_mul_of_nonneg_left hx (norm_nonneg L)
+      _ = ‖L‖ := mul_one _
+  refine ⟨x, hx, ?_⟩
+  change ‖L x‖ = ‖L‖
+  exact le_antisymm hmax_le hnorm_le
+
+/-- Values of the `ℓᵖ` matrix bilinear form on the primal and dual closed
+unit balls.
+
+**Lean implementation helper.** -/
+def matrixLpBilinearUnitBallValues (p q q' : ℝ≥0∞)
+    [Fact (1 ≤ p)] [Fact (1 ≤ q)] [Fact (1 ≤ q')]
+    {m n : Type*} [Fintype m] [Fintype n] [DecidableEq n]
+    (A : Matrix m n ℝ) : Set ℝ :=
+  {z | ∃ x : WithLp p (n → ℝ), ∃ y : WithLp q' (m → ℝ),
+    ‖x‖ ≤ 1 ∧ ‖y‖ ≤ 1 ∧
+      z = |finiteLpPairing y (Matrix.toLpLin p q A x)|}
+
+/-- The general induced `ℓᵖ → ℓᑫ` norm equals the maximum of the associated
+bilinear form over the primal `ℓᵖ` and conjugate `ℓ^{q'}` unit balls.
+
+**Book Remark 4.1.9.** -/
+theorem matrixLpToLpNorm_bilinear_isGreatest
+    (p q q' : ℝ≥0∞) [Fact (1 ≤ p)] [Fact (1 ≤ q)]
+    [Fact (1 ≤ q')] [q'.HolderConjugate q]
+    {m n : Type*} [Fintype m] [Fintype n] [DecidableEq n]
+    (A : Matrix m n ℝ) :
+    IsGreatest (matrixLpBilinearUnitBallValues p q q' A)
+      (matrixLpToLpNorm p q A) := by
+  obtain ⟨x, hx, hAx⟩ := matrixLpToLpNorm_attained p q A
+  obtain ⟨y, hy, hpair⟩ := finiteLpPairing_exists_norming q' q
+    (Matrix.toLpLin p q A x)
+  constructor
+  · refine ⟨x, y, hx, hy, ?_⟩
+    rw [hpair, abs_of_nonneg (norm_nonneg _), hAx]
+  · rintro z ⟨u, v, hu, hv, rfl⟩
+    calc
+      |finiteLpPairing v (Matrix.toLpLin p q A u)| ≤
+          ‖v‖ * ‖Matrix.toLpLin p q A u‖ :=
+        finiteLpPairing_abs_le q' q v _
+      _ ≤ 1 * (matrixLpToLpNorm p q A * ‖u‖) := by
+        exact mul_le_mul hv (matrixLpToLpNorm_apply_le p q A u)
+          (norm_nonneg _) zero_le_one
+      _ ≤ 1 * (matrixLpToLpNorm p q A * 1) := by
+        gcongr
+        exact matrixLpToLpNorm_nonneg p q A
+      _ = matrixLpToLpNorm p q A := by ring
 
 /-- The same induced-norm construction works for arbitrary finite-dimensional `p → q` norms,
 including the endpoint `∞`.
