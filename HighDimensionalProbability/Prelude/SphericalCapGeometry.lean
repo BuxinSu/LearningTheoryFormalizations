@@ -13,6 +13,10 @@ open Set Metric
 
 namespace HDP.Chapter5
 
+/-- A point on a sphere admits a nearby point in the selected hemisphere,
+with distance controlled by its positive normal coordinate.
+
+**Lean implementation helper.** -/
 private theorem hemisphere_nearby_point
     {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
     (e v x : E) (r : ℝ) (hr : 0 ≤ r)
@@ -108,7 +112,9 @@ private theorem hemisphere_nearby_point
         nlinarith [norm_nonneg (a • e + (1 - r / ‖z‖) • z)]
 
 /-- The closed hemisphere of the `sqrt (n + 2)`-sphere selected by its first
-coordinate. -/
+coordinate.
+
+**Lean implementation helper.** -/
 def sphericalHemisphere (n : ℕ) :
     Set (EuclideanSpace ℝ (Fin (n + 2))) :=
   {x | ‖x‖ = Real.sqrt (n + 2 : ℝ) ∧ x 0 ≤ 0}

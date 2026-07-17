@@ -12,7 +12,7 @@ This Lean 4 project translates the monograph’s mathematical development into k
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib `v4.31.0` |
 | Published modules | shared `Prelude`, 8 chapters, and 5 consolidated appendices (14 inner modules total) |
 | Public `theorem` / `lemma` / `def` | 469 / 841 / 135 (**1,445 total**) |
-| Book → Lean correspondence | **470 rows**: 469 kernel-checked declarations and one explicitly not-asserted row |
+| Book → Lean correspondence | **469 kernel-checked declaration counterparts** |
 | Verified kernel status | Clean root build; no `sorry`, `admit`, `native_decide`, or custom axioms; `#print axioms` for every audited theorem/lemma endpoint returns exactly `propext`, `Classical.choice`, and `Quot.sound` |
 
 ```bibtex
@@ -26,12 +26,9 @@ This Lean 4 project translates the monograph’s mathematical development into k
 
 The correspondence table is generated from current declaration docstrings and a fresh comparison with the expanded arXiv-v1 TeX source. It lists direct Book counterparts; implementation helpers and recovered prerequisites are intentionally excluded.
 
-One source-faithfulness exception is made explicit rather than hidden: the literal centered/exact display (6.1.6) is **not asserted**. The table retains one `N/—` row for that literal statement and the two honest proved integrable variants. The literal statement is not reported as a missing result.
-
-
 ## Build
 
-The project is pinned to Lean/Mathlib `v4.31.0`. From this directory:
+The project is pinned to Lean/Mathlib `v4.31.0`. From the repository root:
 
 ```sh
 ~/.elan/bin/lake build
@@ -65,12 +62,11 @@ To check one module directly:
 - `M`: Mathlib correspondence for a Book object or fact.
 - `S`: source-linked declaration whose docstring does not classify it more narrowly.
 - `V`: proved variant of a Book display, with the changed hypothesis or constant stated explicitly.
-- `N`: deliberately not asserted as a theorem.
 - `thm`, `lem`, `def`, and `abbr` describe the Lean declaration kind.
 
 ## Appendix sources and proof pipeline
 
-The Appendix formalizes the external ingredients that Tropp cites rather than proves. Full bibliographic details for these external sources are collected in [`APPENDIX_SUMMARY.md`](APPENDIX_SUMMARY.md); the public-module pipeline is:
+The Appendix formalizes the external ingredients that Tropp cites rather than proves. The public-module pipeline is:
 
 | Result | External mathematical input | Lean formalization pipeline |
 |---|---|---|
@@ -80,12 +76,9 @@ The Appendix formalizes the external ingredients that Tropp cites rather than pr
 | Symmetric-sum lower bound, (6.1.7) | Ledoux–Talagrand §6.1 and de la Peña–Giné §1.1 | product-law sign reflection → averaging over all sign choices → the stronger constant-one inequality |
 | Rosenthal–Pinelis, (6.1.6) | CGT Theorem A.1(2), whose exact-coefficient statement assumes symmetric self-adjoint summands | Schatten/Khintchine infrastructure → Hermitian dilation → an exact-coefficient distributionally symmetric theorem; independent ghost-copy symmetrization gives the centered theorem with coefficient losses `√2` and `2` |
 
-In particular, symmetry is the additional hypothesis under which this development obtains the paper's exact Rosenthal–Pinelis coefficients. Without symmetry, the proved centered result has the explicit ghost-symmetrization losses above. This distinction does not assert that the book's centered/exact display is false; it records exactly what has been kernel-checked here.
-
-
 ## Book → Lean correspondence
 
-This table contains **470 rows**: 469 verified declaration counterparts and one explicitly not-asserted row. Chapter counts are **21 / 136 / 35 / 55 / 71 / 65 / 63 / 24** for Chapters 1–8. All former numeric-, section-, and prose-only candidates were checked directly against the expanded arXiv-v1 source; implementation helpers and recovered prerequisites remain omitted.
+This table contains **469 verified declaration counterparts**. Chapter counts are **21 / 136 / 35 / 55 / 71 / 64 / 63 / 24** for Chapters 1–8. Implementation helpers and recovered prerequisites remain omitted.
 
 ### Chapter 1
 
@@ -440,7 +433,6 @@ This table contains **470 rows**: 469 verified declaration counterparts and one 
 | (6.1.5) · p. 77 | `matrix_bernstein_split_subgaussian` | [`Chapter6_SumOfBoundedRandomMatrices.lean`](Chapter6_SumOfBoundedRandomMatrices.lean) | `E/thm` | |
 | (6.1.5) · p. 77 | `matrix_bernstein_split_subexponential` | [`Chapter6_SumOfBoundedRandomMatrices.lean`](Chapter6_SumOfBoundedRandomMatrices.lean) | `E/thm` | |
 | TeX 6906–49, p. 77 | `matrix_bernstein_uncentered_expectation` | [`Chapter6_SumOfBoundedRandomMatrices.lean`](Chapter6_SumOfBoundedRandomMatrices.lean) | `E/thm` | — |
-| (6.1.6) · p. 78, centered exact coefficients | — not asserted — | [`Appendix_RosenthalPinelis.lean`](Appendix_RosenthalPinelis.lean) | `N/—` | The literal centered/exact source display is not asserted as a Lean theorem. |
 | (6.1.6) · p. 78 | `matrix_rosenthal_pinelis_symmetric_integrable` | [`Chapter6_SumOfBoundedRandomMatrices.lean`](Chapter6_SumOfBoundedRandomMatrices.lean) | `V/thm` | symmetry-in-law, exact coefficients, integrability form |
 | (6.1.6) · p. 78 | `matrix_rosenthal_pinelis_centered_with_loss_integrable` | [`Chapter6_SumOfBoundedRandomMatrices.lean`](Chapter6_SumOfBoundedRandomMatrices.lean) | `V/thm` | centered, explicit √2 and 2 losses, integrability form |
 | TeX 7007–13, p. 78 | `varStat_le_expectation_norm_sq` | [`Chapter6_SumOfBoundedRandomMatrices.lean`](Chapter6_SumOfBoundedRandomMatrices.lean) | `E/thm` | — |
@@ -525,7 +517,7 @@ This table contains **470 rows**: 469 verified declaration counterparts and one 
 | (7.3.4) · p. 109 | `min_intdim_le_intdim_fromBlocks` | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | `E/thm` | — |
 | §7.3.3, TeX 11039–11044 · p. 111 | `matmul_intdim_error_bound` | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | `E/thm` | — |
 | TeX 10924, p. 109 | `intdim_bernstein_uncentered_tail_ae` | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | `S/thm` | a.e. uncentered tail |
-| Cor. 7.3.2 · p. 109 | `intdim_bernstein_uncentered_expectation` | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | `S/thm` | missing uncentered expectation companion |
+| Cor. 7.3.2 · p. 109 | `intdim_bernstein_uncentered_expectation` | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | `S/thm` | uncentered expectation form |
 | (7.7.1) · p. 115 | `intdim_bernstein_herm_tail_one_sided` | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | `S/thm` | one-sided intrinsic Bernstein tail, a.e. upper edge |
 | (7.3.5) · p. 110 | `matrix_sampling_intdim_expectation_ae` | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | `S/thm` | a.e. template bound |
 | (7.3.6) · p. 110 | `matrix_sampling_intdim_tail_ae` | [`Chapter7_IntrinsicDimension.lean`](Chapter7_IntrinsicDimension.lean) | `S/thm` | a.e. template bound |
@@ -601,4 +593,4 @@ This table contains **470 rows**: 469 verified declaration counterparts and one 
 
 The table is a declaration correspondence index, not a claim that every sentence, historical attribution, asymptotic comparison, or application in the monograph has been formalized. Numeric and prose-only mappings were checked against the expanded arXiv-v1 TeX; implementation helpers and recovered prerequisites are omitted.
 
-For the bibliography and present status of external proof sources used by the Appendix, see [`APPENDIX_SUMMARY.md`](APPENDIX_SUMMARY.md).
+The Appendix section above summarizes the external mathematical inputs and the corresponding Lean proof pipelines.

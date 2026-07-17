@@ -32,7 +32,7 @@ import Mathlib.Analysis.Convex.Caratheodory
   - Equations (9.1)–(9.7), Theorem 9.1.1, and Theorem 9.1.2
 - §9.2 Random projections and covariance
   - Proposition 9.2.1 and Theorem 9.2.2: projection size and covariance estimation
-  - §9.2.3: the covariance ellipsoid has radius equal to the operator norm
+  - §9.2.3: covariance-ellipsoid radius and Gaussian-complexity bounds
   - Lemma 9.2.4: additive Johnson–Lindenstrauss
 - §9.3 Random sections
   - Theorem 9.3.1: the M* bound
@@ -15126,6 +15126,123 @@ theorem covarianceEllipsoid_radius {n r : ℕ} (hn : 0 < n) (hr : 0 < r)
     have hle := norm_le_setSupportRadius (covarianceEllipsoid B) hb hy
     rw [← hxval, HDP.matrixOpNorm_transpose] at hle
     exact hle
+
+/-- Every nonempty finite subfamily of a covariance ellipsoid has Gaussian
+complexity at most the Frobenius norm of the defining factor.
+
+**Lean implementation helper.** -/
+theorem finiteGaussianComplexity_le_frobenius_of_subset_covarianceEllipsoid
+    {n r : ℕ} (B : Matrix (Fin n) (Fin r) ℝ)
+    (F : Finset (EuclideanSpace ℝ (Fin r))) (hF : F.Nonempty)
+    (hFE : (F : Set (EuclideanSpace ℝ (Fin r))) ⊆
+      covarianceEllipsoid B) :
+    HDP.Chapter7.gaussianComplexity F ≤
+      HDP.matrixFrobeniusNorm B := by
+  have hpoint (g : EuclideanSpace ℝ (Fin r)) :
+      HDP.Chapter7.finiteGaussianAbsSupport F g ≤
+        ‖B.toEuclideanLin g‖ := by
+    rw [HDP.Chapter7.finiteGaussianAbsSupport_eq_sup' F hF]
+    apply Finset.sup'_le
+    intro y hy
+    rcases hFE hy with ⟨x, hx, rfl⟩
+    have hxnorm : ‖x‖ ≤ 1 := by
+      simpa [Metric.mem_closedBall, dist_zero_right] using hx
+    have hadj :
+        inner ℝ g (B.transpose.toEuclideanLin x) =
+          inner ℝ (B.toEuclideanLin g) x := by
+      rw [← LinearMap.adjoint_inner_left]
+      rw [← Matrix.toEuclideanLin_conjTranspose_eq_adjoint]
+      simp [Matrix.conjTranspose_eq_transpose_of_trivial]
+    rw [hadj]
+    calc
+      |inner ℝ (B.toEuclideanLin g) x| ≤
+          ‖B.toEuclideanLin g‖ * ‖x‖ :=
+        abs_real_inner_le_norm _ _
+      _ ≤ ‖B.toEuclideanLin g‖ * 1 :=
+        mul_le_mul_of_nonneg_left hxnorm (norm_nonneg _)
+      _ = ‖B.toEuclideanLin g‖ := mul_one _
+  have hleftInt : MeasureTheory.Integrable
+      (fun g : EuclideanSpace ℝ (Fin r) =>
+        HDP.Chapter7.finiteGaussianAbsSupport F g ^ 2)
+      (ProbabilityTheory.stdGaussian
+        (EuclideanSpace ℝ (Fin r))) :=
+    (HDP.Chapter7.memLp_two_finiteGaussianAbsSupport F).integrable_sq
+  have hrightMem :
+      MeasureTheory.MemLp (fun g : EuclideanSpace ℝ (Fin r) =>
+        B.toEuclideanLin g) 2
+        (ProbabilityTheory.stdGaussian
+          (EuclideanSpace ℝ (Fin r))) := by
+    have h := (ProbabilityTheory.IsGaussian.memLp_two_id :
+      MeasureTheory.MemLp
+        (id : EuclideanSpace ℝ (Fin r) →
+        EuclideanSpace ℝ (Fin r)) 2
+        (ProbabilityTheory.stdGaussian
+          (EuclideanSpace ℝ (Fin r)))).continuousLinearMap_comp
+          B.toEuclideanLin.toContinuousLinearMap
+    simpa [Function.comp_def] using h
+  have hrightInt : MeasureTheory.Integrable
+      (fun g : EuclideanSpace ℝ (Fin r) =>
+        ‖B.toEuclideanLin g‖ ^ 2)
+      (ProbabilityTheory.stdGaussian
+        (EuclideanSpace ℝ (Fin r))) :=
+    hrightMem.integrable_norm_pow' (p := 2)
+  have hsecond :
+      (∫ g : EuclideanSpace ℝ (Fin r),
+          HDP.Chapter7.finiteGaussianAbsSupport F g ^ 2
+          ∂ProbabilityTheory.stdGaussian
+            (EuclideanSpace ℝ (Fin r))) ≤
+        HDP.matrixFrobeniusNorm B ^ 2 := by
+    rw [← integral_norm_matrix_stdGaussian B]
+    exact MeasureTheory.integral_mono hleftInt hrightInt fun g =>
+      (sq_le_sq₀
+        (HDP.Chapter7.finiteGaussianAbsSupport_nonneg F g)
+        (norm_nonneg _)).2 (hpoint g)
+  calc
+    HDP.Chapter7.gaussianComplexity F ≤
+        HDP.Chapter7.gaussianL2Width F :=
+      HDP.Chapter7.gaussianComplexity_le_gaussianL2Width F
+    _ ≤ Real.sqrt (HDP.matrixFrobeniusNorm B ^ 2) :=
+      Real.sqrt_le_sqrt hsecond
+    _ = HDP.matrixFrobeniusNorm B :=
+      Real.sqrt_sq (HDP.matrixFrobeniusNorm_nonneg B)
+
+/-- The actual covariance ellipsoid has Gaussian complexity at most the
+Frobenius norm of its defining factor.  The extended finite-subfamily envelope
+is the authoritative arbitrary-set interface, so the statement does not hide
+an uncountable-supremum measurability assumption.
+
+For `Σ = BᵀB`, the right side is `√(tr Σ)`.
+
+**Book Section 9.2.3.** -/
+theorem covarianceEllipsoid_gaussianComplexityEnvelope_le
+    {n r : ℕ} (B : Matrix (Fin n) (Fin r) ℝ) :
+    gaussianComplexityEnvelope (covarianceEllipsoid B) ≤
+      ENNReal.ofReal (HDP.matrixFrobeniusNorm B) := by
+  unfold gaussianComplexityEnvelope
+  apply iSup_le
+  intro F
+  apply iSup_le
+  intro hFE
+  apply iSup_le
+  intro hF
+  exact ENNReal.ofReal_le_ofReal
+    (finiteGaussianComplexity_le_frobenius_of_subset_covarianceEllipsoid
+      B F hF hFE)
+
+/-- Safe real form of the covariance-ellipsoid Gaussian-complexity bound.
+
+**Book Section 9.2.3.** -/
+theorem covarianceEllipsoid_gaussianComplexityEnvelope_toReal_le
+    {n r : ℕ} (B : Matrix (Fin n) (Fin r) ℝ) :
+    (gaussianComplexityEnvelope (covarianceEllipsoid B)).toReal ≤
+      HDP.matrixFrobeniusNorm B := by
+  have h := covarianceEllipsoid_gaussianComplexityEnvelope_le B
+  have htop :
+      ENNReal.ofReal (HDP.matrixFrobeniusNorm B) ≠ ⊤ :=
+    ENNReal.ofReal_ne_top
+  have hreal := ENNReal.toReal_mono htop h
+  simpa [ENNReal.toReal_ofReal (HDP.matrixFrobeniusNorm_nonneg B)] using
+    hreal
 
 /-- The support
 functional of any set is positively homogeneous for nonnegative scalars.

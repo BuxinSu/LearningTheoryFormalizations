@@ -1221,7 +1221,7 @@ theorem hoeffding_rademacher_two_sided [IsProbabilityMeasure μ] {N : ℕ}
 Book (2.1): for `N > 0` independent fair coin tosses,
 `P{S_N ≥ 3N/4} ≤ 4/N`.
 
-**Book Question 2.1.1, equation (2.1).** -/
+**Book Equation (2.1) and Question 2.1.1.** -/
 theorem fair_coin_chebyshev_equation_2_1 [IsProbabilityMeasure μ]
     {N : ℕ} (hN : 0 < N) {X : Fin N → Ω → ℝ}
     (hX : ∀ i, HDP.IsBernoulli (X i) ⟨1 / 2, by norm_num, by norm_num⟩ μ)

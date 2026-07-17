@@ -1436,7 +1436,7 @@ infimum of the points where the CDF reaches one half. Right continuity gives
 the lower-half inequality, while the left limit controls the open lower tail
 and hence gives the upper-half inequality.
 
-**Book pages 145–146 (median existence used in Remark 5.2.1).** -/
+**Book pp. 145–146 and Remark 5.2.1.** -/
 theorem exists_measureMedian (ν : Measure ℝ) [IsProbabilityMeasure ν] :
     ∃ M : ℝ, (1 / 2 : ℝ) ≤ ν.real (Set.Iic M) ∧
       (1 / 2 : ℝ) ≤ ν.real (Set.Ici M) := by
@@ -1496,7 +1496,7 @@ theorem exists_measureMedian (ν : Measure ℝ) [IsProbabilityMeasure ν] :
 /-- Every a.e.-measurable real random variable on a probability space has a
 measure-theoretic median, including variables with atoms.
 
-**Book pages 145–146 (median existence used in Remark 5.2.1).** -/
+**Book pp. 145–146 and Remark 5.2.1.** -/
 theorem exists_isMedian
     {T : Type*} [MeasurableSpace T] {μ : Measure T}
     [IsProbabilityMeasure μ] (X : T → ℝ) (hX : AEMeasurable X μ) :
@@ -6235,12 +6235,16 @@ theorem matrixNorm_le_iff_loewnerInterval [Nonempty n] {A : Matrix n n ℝ}
     fun h => loewnerInterval_gives_matrixNorm hA h.1 h.2⟩
 
 /-- The first matrix in the explicit counterexample to unrestricted matrix
-monotonicity. -/
+monotonicity.
+
+**Lean implementation helper.** -/
 def matrixMonotonicityCounterexampleA : Matrix (Fin 2) (Fin 2) ℝ :=
   !![1, 0; 0, 0]
 
 /-- The second matrix in the explicit counterexample to unrestricted matrix
-monotonicity. -/
+monotonicity.
+
+**Lean implementation helper.** -/
 def matrixMonotonicityCounterexampleB : Matrix (Fin 2) (Fin 2) ℝ :=
   !![2, 1; 1, 1]
 
@@ -6578,15 +6582,23 @@ theorem matrixExponential_add_of_commute {A B : Matrix n n ℝ}
   exact MatrixConcentration.matrix_exp_add_of_commute hcomm
 
 /-- The diagonal symmetric matrix in the explicit noncommuting-exponential
-counterexample. -/
+counterexample.
+
+**Lean implementation helper.** -/
 def matrixExponentialCounterexampleX : Matrix (Fin 2) (Fin 2) ℝ :=
   !![1, 0; 0, 0]
 
 /-- The symmetric coordinate-swap matrix in the explicit
-noncommuting-exponential counterexample. -/
+noncommuting-exponential counterexample.
+
+**Lean implementation helper.** -/
 def matrixExponentialCounterexampleY : Matrix (Fin 2) (Fin 2) ℝ :=
   !![0, 1; 1, 0]
 
+/-- The Hadamard change-of-basis unit used to diagonalize the coordinate-swap
+matrix.
+
+**Lean implementation helper.** -/
 private noncomputable def matrixExponentialHadamardUnit :
     (Matrix (Fin 2) (Fin 2) ℂ)ˣ where
   val := !![1, 1; 1, -1]
@@ -6600,6 +6612,9 @@ private noncomputable def matrixExponentialHadamardUnit :
     fin_cases i <;> fin_cases j <;>
       norm_num [Matrix.mul_apply, Fin.sum_univ_two]
 
+/-- The exponential of the diagonal counterexample matrix.
+
+**Lean implementation helper.** -/
 private theorem matrixExponentialCounterexampleX_formula :
     NormedSpace.exp
         (HDP.complexifyMatrix matrixExponentialCounterexampleX) =
@@ -6616,6 +6631,9 @@ private theorem matrixExponentialCounterexampleX_formula :
   fin_cases i <;> fin_cases j <;>
     norm_num [Complex.exp_eq_exp_ℂ]
 
+/-- The exponential of the coordinate-swap counterexample matrix.
+
+**Lean implementation helper.** -/
 private theorem matrixExponentialCounterexampleY_formula :
     NormedSpace.exp
         (HDP.complexifyMatrix matrixExponentialCounterexampleY) =

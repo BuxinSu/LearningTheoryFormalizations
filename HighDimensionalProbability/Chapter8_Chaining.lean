@@ -36,6 +36,10 @@ import HighDimensionalProbability.Chapter3_RandomVectorsInHighDimensions
 
 ## Contents
 
+- Chapter 7 actual-set Gaussian-width interface
+  - Proposition 7.5.2: finiteness, translation and orthogonal invariance,
+    convexification, Minkowski sums, scaling, symmetrization, diameter bounds,
+    and continuous-linear-image bounds
 - §8.1 Subgaussian increments and Dudley chaining
   - Definition 8.1.1 and Example 8.1.2: `ψ₂` increments of arbitrary Gaussian
     processes and the tautological `ψ₂` increment metric
@@ -134,7 +138,9 @@ theorem hasSubGaussianIncrementsWith_psi2Metric
   refine ⟨zero_le_one, fun s t ↦ ⟨hX s t, ?_⟩⟩
   simp
 
-/-- Existential-constant form of the `ψ₂` increment-metric observation. -/
+/-- Existential-constant form of the `ψ₂` increment-metric observation.
+
+**Book Section 8.1, after Example 8.1.2.** -/
 theorem hasSubGaussianIncrements_psi2Metric
     (X : RandomProcess T Ω)
     (hX : ∀ s t, SubGaussian (fun ω ↦ X t ω - X s ω) μ) :
@@ -5039,6 +5045,802 @@ theorem euclideanSetGaussianWidth_orthogonalImage
   rw [euclideanSetGaussianWidth,
     euclideanSetGaussianWidthENN_orthogonalImage,
     euclideanSetGaussianWidth]
+
+/-! ### The remaining actual-set laws in Proposition 7.5.2 -/
+
+/-- A nonempty finite subfamily of an arbitrary Euclidean set.
+
+**Lean implementation helper.** -/
+def AdmissibleWidthFinset {n : ℕ}
+    (T : Set (EuclideanSpace ℝ (Fin n))) :=
+  {F : Finset (EuclideanSpace ℝ (Fin n)) //
+    (F : Set (EuclideanSpace ℝ (Fin n))) ⊆ T ∧ F.Nonempty}
+
+/-- The arbitrary-set Gaussian-width envelope written as one supremum over
+admissible finite subfamilies.
+
+**Lean implementation helper.** -/
+theorem euclideanSetGaussianWidthENN_eq_iSup_admissible
+    {n : ℕ} (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidthENN T =
+      ⨆ F : AdmissibleWidthFinset T,
+        ENNReal.ofReal (HDP.Chapter7.gaussianWidth F.1) := by
+  apply le_antisymm
+  · unfold euclideanSetGaussianWidthENN
+    apply iSup_le
+    intro F
+    apply iSup_le
+    intro hFT
+    apply iSup_le
+    intro hF
+    exact le_iSup_of_le (⟨F, hFT, hF⟩ :
+      AdmissibleWidthFinset T) le_rfl
+  · apply iSup_le
+    intro F
+    exact finiteGaussianWidth_le_euclideanSetGaussianWidthENN
+      F.1 F.2.1 F.2.2
+
+/-- Monotonicity of the authoritative arbitrary-set Gaussian-width envelope.
+
+**Lean implementation helper.** -/
+theorem euclideanSetGaussianWidthENN_mono
+    {n : ℕ} {S T : Set (EuclideanSpace ℝ (Fin n))}
+    (hST : S ⊆ T) :
+    euclideanSetGaussianWidthENN S ≤
+      euclideanSetGaussianWidthENN T := by
+  unfold euclideanSetGaussianWidthENN
+  apply iSup_le
+  intro F
+  apply iSup_le
+  intro hFS
+  apply iSup_le
+  intro hF
+  exact finiteGaussianWidth_le_euclideanSetGaussianWidthENN
+    F (hFS.trans hST) hF
+
+/-- Every point in the convex hull of a nonempty set already lies in the
+convex hull of a nonempty finite subfamily of that set.
+
+**Lean implementation helper.** -/
+private theorem exists_admissible_finset_of_mem_convexHull
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (hT : T.Nonempty) {x : EuclideanSpace ℝ (Fin n)}
+    (hx : x ∈ convexHull ℝ T) :
+    ∃ F : Finset (EuclideanSpace ℝ (Fin n)),
+      F.Nonempty ∧ (F : Set (EuclideanSpace ℝ (Fin n))) ⊆ T ∧
+        x ∈ convexHull ℝ (F : Set (EuclideanSpace ℝ (Fin n))) := by
+  classical
+  obtain ⟨x0, hx0⟩ := hT
+  rw [mem_convexHull_iff_exists_fintype] at hx
+  rcases hx with ⟨ι, hι, w, z, hw0, hw1, hz, hsum⟩
+  let F : Finset (EuclideanSpace ℝ (Fin n)) :=
+    insert x0 (Finset.univ.image z)
+  refine ⟨F, ⟨x0, by simp [F]⟩, ?_, ?_⟩
+  · intro y hy
+    simp only [F, Finset.coe_insert, Finset.coe_image,
+      Finset.coe_univ, Set.image_univ, Set.mem_insert_iff,
+      Set.mem_range] at hy
+    rcases hy with rfl | ⟨i, rfl⟩
+    · exact hx0
+    · exact hz i
+  · exact mem_convexHull_of_exists_fintype w z hw0 hw1
+      (fun i => by
+        have hzi : z i ∈ Finset.univ.image z :=
+          Finset.mem_image.mpr ⟨i, Finset.mem_univ i, rfl⟩
+        exact by simp [F]) hsum
+
+/-- If every point of one finite set belongs to the convex hull of another,
+then its Gaussian width is no larger.
+
+**Lean implementation helper.** -/
+theorem finiteGaussianWidth_le_of_subset_convexHull
+    {n : ℕ}
+    (F G : Finset (EuclideanSpace ℝ (Fin n)))
+    (hF : F.Nonempty) (hG : G.Nonempty)
+    (hFG : (F : Set (EuclideanSpace ℝ (Fin n))) ⊆
+      convexHull ℝ (G : Set (EuclideanSpace ℝ (Fin n)))) :
+    HDP.Chapter7.gaussianWidth F ≤
+      HDP.Chapter7.gaussianWidth G := by
+  apply integral_mono
+    (HDP.Chapter7.integrable_finiteGaussianSupport F)
+    (HDP.Chapter7.integrable_finiteGaussianSupport G)
+  intro g
+  rw [HDP.Chapter7.finiteGaussianSupport_eq_sup' F hF,
+    HDP.Chapter7.finiteGaussianSupport_eq_sup' G hG]
+  apply (Finset.sup'_le_iff hF (fun x => inner ℝ g x)).mpr
+  intro x hx
+  have hlinear : ConvexOn ℝ Set.univ
+      (fun z : EuclideanSpace ℝ (Fin n) => inner ℝ g z) := by
+    simpa [real_inner_comm] using
+      (((innerSL ℝ) g).toLinearMap.convexOn
+        (convex_univ : Convex ℝ
+          (Set.univ : Set (EuclideanSpace ℝ (Fin n)))))
+  exact hlinear.le_sup_of_mem_convexHull
+    (Set.subset_univ _) (hFG hx)
+
+/-- Gaussian width is unchanged by taking the genuine convex hull of an
+arbitrary nonempty set.
+
+**Book Proposition 7.5.2(c).** -/
+theorem euclideanSetGaussianWidthENN_convexHull
+    {n : ℕ} (T : Set (EuclideanSpace ℝ (Fin n)))
+    (hT : T.Nonempty) :
+    euclideanSetGaussianWidthENN (convexHull ℝ T) =
+      euclideanSetGaussianWidthENN T := by
+  apply le_antisymm
+  · unfold euclideanSetGaussianWidthENN
+    apply iSup_le
+    intro F
+    apply iSup_le
+    intro hFhull
+    apply iSup_le
+    intro hF
+    classical
+    have hTne := hT
+    obtain ⟨t0, ht0⟩ := hT
+    have hgen : ∀ x : EuclideanSpace ℝ (Fin n),
+        ∃ G : Finset (EuclideanSpace ℝ (Fin n)),
+          G.Nonempty ∧
+          (G : Set (EuclideanSpace ℝ (Fin n))) ⊆ T ∧
+          (x ∈ F →
+            x ∈ convexHull ℝ
+              (G : Set (EuclideanSpace ℝ (Fin n)))) := by
+      intro x
+      by_cases hx : x ∈ F
+      · rcases exists_admissible_finset_of_mem_convexHull
+          hTne (hFhull hx) with ⟨G, hG, hGT, hxG⟩
+        exact ⟨G, hG, hGT, fun _ => hxG⟩
+      · exact ⟨{t0}, by simp, by simpa using ht0,
+          fun hxF => (hx hxF).elim⟩
+    choose G hGne hGT hxG using hgen
+    let U : Finset (EuclideanSpace ℝ (Fin n)) :=
+      F.biUnion G
+    have hFne := hF
+    obtain ⟨x0, hx0⟩ := hF
+    obtain ⟨u0, hu0⟩ := hGne x0
+    have hU : U.Nonempty :=
+      ⟨u0, Finset.mem_biUnion.mpr ⟨x0, hx0, hu0⟩⟩
+    have hUT :
+        (U : Set (EuclideanSpace ℝ (Fin n))) ⊆ T := by
+      intro u hu
+      rcases Finset.mem_biUnion.mp hu with
+        ⟨x, hx, huG⟩
+      exact hGT x huG
+    have hFU :
+        (F : Set (EuclideanSpace ℝ (Fin n))) ⊆
+          convexHull ℝ
+            (U : Set (EuclideanSpace ℝ (Fin n))) := by
+      intro x hx
+      exact convexHull_mono
+        (fun u hu =>
+          Finset.mem_biUnion.mpr ⟨x, hx, hu⟩)
+        (hxG x hx)
+    calc
+      ENNReal.ofReal (HDP.Chapter7.gaussianWidth F) ≤
+          ENNReal.ofReal (HDP.Chapter7.gaussianWidth U) :=
+        ENNReal.ofReal_le_ofReal
+          (finiteGaussianWidth_le_of_subset_convexHull
+            F U hFne hU hFU)
+      _ ≤ euclideanSetGaussianWidthENN T :=
+        finiteGaussianWidth_le_euclideanSetGaussianWidthENN
+          U hUT hU
+  · exact euclideanSetGaussianWidthENN_mono
+      (subset_convexHull ℝ T)
+
+/-- Taking a convex hull does not change the safe real arbitrary-set
+Gaussian width.
+
+**Book Proposition 7.5.2(c).** -/
+theorem euclideanSetGaussianWidth_convexHull
+    {n : ℕ} (T : Set (EuclideanSpace ℝ (Fin n)))
+    (hT : T.Nonempty) :
+    euclideanSetGaussianWidth (convexHull ℝ T) =
+      euclideanSetGaussianWidth T := by
+  rw [euclideanSetGaussianWidth,
+    euclideanSetGaussianWidthENN_convexHull T hT,
+    euclideanSetGaussianWidth]
+
+/-- Minkowski sum of two arbitrary Euclidean sets.
+
+**Lean implementation helper.** -/
+def minkowskiSumEuclideanSet {n : ℕ}
+    (T S : Set (EuclideanSpace ℝ (Fin n))) :
+    Set (EuclideanSpace ℝ (Fin n)) :=
+  {z | ∃ x ∈ T, ∃ y ∈ S, z = x + y}
+
+/-- The Gaussian-width envelope of a Minkowski sum is the sum of the two
+Gaussian-width envelopes. This extended-valued statement remains meaningful
+for unbounded sets.
+
+**Book Proposition 7.5.2(d).** -/
+theorem euclideanSetGaussianWidthENN_minkowskiSum
+    {n : ℕ} (T S : Set (EuclideanSpace ℝ (Fin n)))
+    (hT : T.Nonempty) (hS : S.Nonempty) :
+    euclideanSetGaussianWidthENN (minkowskiSumEuclideanSet T S) =
+      euclideanSetGaussianWidthENN T +
+        euclideanSetGaussianWidthENN S := by
+  classical
+  apply le_antisymm
+  · rw [euclideanSetGaussianWidthENN_eq_iSup_admissible]
+    apply iSup_le
+    intro F
+    obtain ⟨t0, ht0⟩ := hT
+    obtain ⟨s0, hs0⟩ := hS
+    have hchoice : ∀ z : EuclideanSpace ℝ (Fin n),
+        ∃ x : EuclideanSpace ℝ (Fin n), x ∈ T ∧
+          ∃ y : EuclideanSpace ℝ (Fin n), y ∈ S ∧
+            (z ∈ F.1 → z = x + y) := by
+      intro z
+      by_cases hz : z ∈ F.1
+      · rcases F.2.1 hz with ⟨x, hx, y, hy, hxy⟩
+        exact ⟨x, hx, y, hy, fun _ => hxy⟩
+      · exact ⟨t0, ht0, s0, hs0, fun hzF => (hz hzF).elim⟩
+    choose x hxT y hyS hxy using hchoice
+    let G : Finset (EuclideanSpace ℝ (Fin n)) := F.1.image x
+    let H : Finset (EuclideanSpace ℝ (Fin n)) := F.1.image y
+    have hG : G.Nonempty := F.2.2.image x
+    have hH : H.Nonempty := F.2.2.image y
+    have hGT : (G : Set (EuclideanSpace ℝ (Fin n))) ⊆ T := by
+      intro z hz
+      rcases Finset.mem_image.mp hz with ⟨w, hw, rfl⟩
+      exact hxT w
+    have hHS : (H : Set (EuclideanSpace ℝ (Fin n))) ⊆ S := by
+      intro z hz
+      rcases Finset.mem_image.mp hz with ⟨w, hw, rfl⟩
+      exact hyS w
+    have hFM :
+        F.1 ⊆ HDP.Chapter7.minkowskiSumFinset G H := by
+      intro z hz
+      unfold HDP.Chapter7.minkowskiSumFinset
+      apply Finset.mem_image.mpr
+      refine ⟨(x z, y z), Finset.mem_product.mpr ⟨?_, ?_⟩, ?_⟩
+      · exact Finset.mem_image.mpr ⟨z, hz, rfl⟩
+      · exact Finset.mem_image.mpr ⟨z, hz, rfl⟩
+      · exact (hxy z hz).symm
+    have hmono :
+        HDP.Chapter7.gaussianWidth F.1 ≤
+          HDP.Chapter7.gaussianWidth
+            (HDP.Chapter7.minkowskiSumFinset G H) :=
+      HDP.Chapter7.gaussianWidth_mono F.2.2
+        (HDP.Chapter7.minkowskiSumFinset_nonempty hG hH) hFM
+    calc
+      ENNReal.ofReal (HDP.Chapter7.gaussianWidth F.1) ≤
+          ENNReal.ofReal
+            (HDP.Chapter7.gaussianWidth
+              (HDP.Chapter7.minkowskiSumFinset G H)) :=
+        ENNReal.ofReal_le_ofReal hmono
+      _ = ENNReal.ofReal
+          (HDP.Chapter7.gaussianWidth G +
+            HDP.Chapter7.gaussianWidth H) := by
+        rw [HDP.Chapter7.gaussianWidth_minkowskiSum G H hG hH]
+      _ = ENNReal.ofReal (HDP.Chapter7.gaussianWidth G) +
+          ENNReal.ofReal (HDP.Chapter7.gaussianWidth H) := by
+        rw [ENNReal.ofReal_add
+          (HDP.Chapter7.gaussianWidth_nonneg G hG)
+          (HDP.Chapter7.gaussianWidth_nonneg H hH)]
+      _ ≤ euclideanSetGaussianWidthENN T +
+          euclideanSetGaussianWidthENN S := add_le_add
+        (finiteGaussianWidth_le_euclideanSetGaussianWidthENN G hGT hG)
+        (finiteGaussianWidth_le_euclideanSetGaussianWidthENN H hHS hH)
+  · rw [euclideanSetGaussianWidthENN_eq_iSup_admissible,
+      euclideanSetGaussianWidthENN_eq_iSup_admissible]
+    let FT : AdmissibleWidthFinset T :=
+      ⟨{hT.choose}, by simpa using hT.choose_spec, by simp⟩
+    let FS : AdmissibleWidthFinset S :=
+      ⟨{hS.choose}, by simpa using hS.choose_spec, by simp⟩
+    letI : Nonempty (AdmissibleWidthFinset T) := ⟨FT⟩
+    letI : Nonempty (AdmissibleWidthFinset S) := ⟨FS⟩
+    apply ENNReal.iSup_add_iSup_le
+    intro F G
+    let M := HDP.Chapter7.minkowskiSumFinset F.1 G.1
+    have hM : M.Nonempty :=
+      HDP.Chapter7.minkowskiSumFinset_nonempty F.2.2 G.2.2
+    have hMTS :
+        (M : Set (EuclideanSpace ℝ (Fin n))) ⊆
+          minkowskiSumEuclideanSet T S := by
+      intro z hz
+      rcases Finset.mem_image.mp hz with ⟨p, hp, rfl⟩
+      exact ⟨p.1, F.2.1 (Finset.mem_product.mp hp).1,
+        p.2, G.2.1 (Finset.mem_product.mp hp).2, rfl⟩
+    calc
+      ENNReal.ofReal (HDP.Chapter7.gaussianWidth F.1) +
+          ENNReal.ofReal (HDP.Chapter7.gaussianWidth G.1) =
+          ENNReal.ofReal
+            (HDP.Chapter7.gaussianWidth F.1 +
+              HDP.Chapter7.gaussianWidth G.1) := by
+        rw [ENNReal.ofReal_add
+          (HDP.Chapter7.gaussianWidth_nonneg F.1 F.2.2)
+          (HDP.Chapter7.gaussianWidth_nonneg G.1 G.2.2)]
+      _ = ENNReal.ofReal (HDP.Chapter7.gaussianWidth M) := by
+        rw [HDP.Chapter7.gaussianWidth_minkowskiSum
+          F.1 G.1 F.2.2 G.2.2]
+      _ ≤ euclideanSetGaussianWidthENN
+          (minkowskiSumEuclideanSet T S) :=
+        finiteGaussianWidth_le_euclideanSetGaussianWidthENN
+          M hMTS hM
+
+/-- Scalar image of an arbitrary Euclidean set.
+
+**Lean implementation helper.** -/
+def scaleEuclideanSet {n : ℕ} (a : ℝ)
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    Set (EuclideanSpace ℝ (Fin n)) :=
+  (fun x ↦ a • x) '' T
+
+/-- The Gaussian-width envelope is absolutely homogeneous. The extended
+product gives the correct value even when `T` is unbounded (including the
+case `a = 0`).
+
+**Book Proposition 7.5.2(d).** -/
+theorem euclideanSetGaussianWidthENN_scale
+    {n : ℕ} (a : ℝ)
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidthENN (scaleEuclideanSet a T) =
+      ENNReal.ofReal |a| * euclideanSetGaussianWidthENN T := by
+  classical
+  apply le_antisymm
+  · rw [euclideanSetGaussianWidthENN_eq_iSup_admissible]
+    apply iSup_le
+    intro F
+    have hchoice : ∀ z : EuclideanSpace ℝ (Fin n),
+        ∃ x : EuclideanSpace ℝ (Fin n), x ∈ T ∧
+          (z ∈ F.1 → z = a • x) := by
+      intro z
+      by_cases hz : z ∈ F.1
+      · rcases F.2.1 hz with ⟨x, hx, hzx⟩
+        exact ⟨x, hx, fun _ => hzx.symm⟩
+      · obtain ⟨z0, hz0⟩ := F.2.2
+        rcases F.2.1 hz0 with ⟨x0, hx0, hzx0⟩
+        exact ⟨x0, hx0, fun hzF => (hz hzF).elim⟩
+    choose x hxT hzx using hchoice
+    let G : Finset (EuclideanSpace ℝ (Fin n)) := F.1.image x
+    have hG : G.Nonempty := F.2.2.image x
+    have hGT : (G : Set (EuclideanSpace ℝ (Fin n))) ⊆ T := by
+      intro z hz
+      rcases Finset.mem_image.mp hz with ⟨w, hw, rfl⟩
+      exact hxT w
+    have hFscale : F.1 ⊆ HDP.Chapter7.scaleFinset a G := by
+      intro z hz
+      unfold HDP.Chapter7.scaleFinset
+      exact Finset.mem_image.mpr
+        ⟨x z, Finset.mem_image.mpr ⟨z, hz, rfl⟩,
+          (hzx z hz).symm⟩
+    have hmono :
+        HDP.Chapter7.gaussianWidth F.1 ≤
+          HDP.Chapter7.gaussianWidth
+            (HDP.Chapter7.scaleFinset a G) :=
+      HDP.Chapter7.gaussianWidth_mono F.2.2
+        (HDP.Chapter7.scaleFinset_nonempty a hG) hFscale
+    calc
+      ENNReal.ofReal (HDP.Chapter7.gaussianWidth F.1) ≤
+          ENNReal.ofReal
+            (HDP.Chapter7.gaussianWidth
+              (HDP.Chapter7.scaleFinset a G)) :=
+        ENNReal.ofReal_le_ofReal hmono
+      _ = ENNReal.ofReal
+          (|a| * HDP.Chapter7.gaussianWidth G) := by
+        rw [HDP.Chapter7.gaussianWidth_scale G hG a]
+      _ = ENNReal.ofReal |a| *
+          ENNReal.ofReal (HDP.Chapter7.gaussianWidth G) := by
+        rw [ENNReal.ofReal_mul (abs_nonneg a)]
+      _ ≤ ENNReal.ofReal |a| *
+          euclideanSetGaussianWidthENN T := by
+        gcongr
+        exact finiteGaussianWidth_le_euclideanSetGaussianWidthENN
+          G hGT hG
+  · rw [euclideanSetGaussianWidthENN_eq_iSup_admissible,
+      ENNReal.mul_iSup]
+    apply iSup_le
+    intro F
+    let G := HDP.Chapter7.scaleFinset a F.1
+    have hG : G.Nonempty :=
+      HDP.Chapter7.scaleFinset_nonempty a F.2.2
+    have hGscale :
+        (G : Set (EuclideanSpace ℝ (Fin n))) ⊆
+          scaleEuclideanSet a T := by
+      intro z hz
+      rcases Finset.mem_image.mp hz with ⟨x, hx, rfl⟩
+      exact ⟨x, F.2.1 hx, rfl⟩
+    calc
+      ENNReal.ofReal |a| *
+          ENNReal.ofReal (HDP.Chapter7.gaussianWidth F.1) =
+          ENNReal.ofReal
+            (|a| * HDP.Chapter7.gaussianWidth F.1) := by
+        rw [ENNReal.ofReal_mul (abs_nonneg a)]
+      _ = ENNReal.ofReal (HDP.Chapter7.gaussianWidth G) := by
+        rw [HDP.Chapter7.gaussianWidth_scale F.1 F.2.2 a]
+      _ ≤ euclideanSetGaussianWidthENN
+          (scaleEuclideanSet a T) :=
+        finiteGaussianWidth_le_euclideanSetGaussianWidthENN
+          G hGscale hG
+
+/-- Difference of two arbitrary Euclidean sets.
+
+**Lean implementation helper.** -/
+def differenceEuclideanSet {n : ℕ}
+    (T S : Set (EuclideanSpace ℝ (Fin n))) :
+    Set (EuclideanSpace ℝ (Fin n)) :=
+  minkowskiSumEuclideanSet T (scaleEuclideanSet (-1) S)
+
+/-- The extended Gaussian width of a difference set is the sum of the two
+widths.
+
+**Book Proposition 7.5.2(e).** -/
+theorem euclideanSetGaussianWidthENN_difference
+    {n : ℕ} (T S : Set (EuclideanSpace ℝ (Fin n)))
+    (hT : T.Nonempty) (hS : S.Nonempty) :
+    euclideanSetGaussianWidthENN (differenceEuclideanSet T S) =
+      euclideanSetGaussianWidthENN T +
+        euclideanSetGaussianWidthENN S := by
+  unfold differenceEuclideanSet
+  rw [euclideanSetGaussianWidthENN_minkowskiSum T
+      (scaleEuclideanSet (-1) S) hT (hS.image _),
+    euclideanSetGaussianWidthENN_scale]
+  norm_num
+
+/-- A set's width is half the width of its difference set. The extended
+identity remains valid for unbounded nonempty sets.
+
+**Book Proposition 7.5.2(e).** -/
+theorem euclideanSetGaussianWidthENN_eq_half_difference
+    {n : ℕ} (T : Set (EuclideanSpace ℝ (Fin n)))
+    (hT : T.Nonempty) :
+    euclideanSetGaussianWidthENN T =
+      ENNReal.ofReal (1 / 2 : ℝ) *
+        euclideanSetGaussianWidthENN
+          (differenceEuclideanSet T T) := by
+  rw [euclideanSetGaussianWidthENN_difference T T hT hT]
+  rw [show (1 / 2 : ℝ) = (2 : ℝ)⁻¹ by norm_num,
+    ENNReal.ofReal_inv_of_pos (by norm_num : (0 : ℝ) < 2),
+    ENNReal.ofReal_ofNat]
+  rw [← two_mul, ← mul_assoc]
+  rw [ENNReal.inv_mul_cancel (by norm_num) (by norm_num), one_mul]
+
+/-! ### Width and diameter for actual bounded sets -/
+
+/-- The diameter of a finite subfamily is no larger than the diameter of a
+bounded ambient set.
+
+**Lean implementation helper.** -/
+theorem finiteEuclideanDiameter_le_set_diam
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (hTb : Bornology.IsBounded T)
+    (F : Finset (EuclideanSpace ℝ (Fin n)))
+    (hF : F.Nonempty)
+    (hFT : (F : Set (EuclideanSpace ℝ (Fin n))) ⊆ T) :
+    HDP.Chapter7.finiteEuclideanDiameter F ≤ Metric.diam T := by
+  rw [HDP.Chapter7.finiteEuclideanDiameter_eq_sup' F hF]
+  apply Finset.sup'_le
+  intro p hp
+  rw [← dist_eq_norm]
+  exact Metric.dist_le_diam_of_mem hTb
+    (hFT (Finset.mem_product.mp hp).1)
+    (hFT (Finset.mem_product.mp hp).2)
+
+/-- The authoritative arbitrary-set Gaussian-width envelope has the
+dimension-dependent diameter upper bound on every bounded set.
+
+**Book Proposition 7.5.2(f).** -/
+theorem euclideanSetGaussianWidthENN_le_sqrt_dim_mul_diameter
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (hTb : Bornology.IsBounded T) :
+    euclideanSetGaussianWidthENN T ≤
+      ENNReal.ofReal
+        (Real.sqrt n / 2 * Metric.diam T) := by
+  unfold euclideanSetGaussianWidthENN
+  apply iSup_le
+  intro F
+  apply iSup_le
+  intro hFT
+  apply iSup_le
+  intro hF
+  apply ENNReal.ofReal_le_ofReal
+  calc
+    HDP.Chapter7.gaussianWidth F ≤
+        Real.sqrt n / 2 *
+          HDP.Chapter7.finiteEuclideanDiameter F :=
+      HDP.Chapter7.gaussianWidth_le_sqrt_card_mul_diameter F hF
+    _ ≤ Real.sqrt n / 2 * Metric.diam T :=
+      mul_le_mul_of_nonneg_left
+        (finiteEuclideanDiameter_le_set_diam hTb F hF hFT)
+        (by positivity)
+
+/-- The authoritative arbitrary-set Gaussian-width envelope has the
+universal diameter lower bound on every bounded set.
+
+**Book Proposition 7.5.2(f).** -/
+theorem euclideanSetGaussianWidthENN_lower_diameter
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (hTb : Bornology.IsBounded T) :
+    ENNReal.ofReal
+        ((1 / Real.sqrt (2 * Real.pi) : ℝ) * Metric.diam T) ≤
+      euclideanSetGaussianWidthENN T := by
+  classical
+  let c : ℝ := 1 / Real.sqrt (2 * Real.pi)
+  have hc : 0 < c := by
+    dsimp [c]
+    positivity
+  have hwtop : euclideanSetGaussianWidthENN T ≠ ⊤ :=
+    ne_top_of_le_ne_top ENNReal.ofReal_ne_top
+      (euclideanSetGaussianWidthENN_le_sqrt_dim_mul_diameter hTb)
+  have hpairs :
+      ∀ x ∈ T, ∀ y ∈ T,
+        c * dist x y ≤ (euclideanSetGaussianWidthENN T).toReal := by
+    intro x hx y hy
+    let F : Finset (EuclideanSpace ℝ (Fin n)) := {x, y}
+    have hF : F.Nonempty := by simp [F]
+    have hFT : (F : Set (EuclideanSpace ℝ (Fin n))) ⊆ T := by
+      intro z hz
+      simp only [F, Finset.coe_insert, Finset.coe_singleton,
+        Set.mem_insert_iff, Set.mem_singleton_iff] at hz
+      rcases hz with rfl | rfl
+      · exact hx
+      · exact hy
+    have hfinite :
+        c * dist x y ≤ HDP.Chapter7.gaussianWidth F := by
+      simpa [c, dist_eq_norm] using
+        (HDP.Chapter7.gaussianWidth_pairwise_diameter_lower
+          F hF (by simp [F]) (by simp [F]))
+    have hFENN :=
+      finiteGaussianWidth_le_euclideanSetGaussianWidthENN F hFT hF
+    have htoReal := ENNReal.toReal_mono hwtop hFENN
+    rw [ENNReal.toReal_ofReal
+      (HDP.Chapter7.gaussianWidth_nonneg F hF)] at htoReal
+    exact hfinite.trans htoReal
+  have hdiam :
+      Metric.diam T ≤
+        (euclideanSetGaussianWidthENN T).toReal / c := by
+    apply Metric.diam_le_of_forall_dist_le
+      (div_nonneg ENNReal.toReal_nonneg hc.le)
+    intro x hx y hy
+    exact (le_div_iff₀ hc).2 (by
+      simpa [mul_comm] using hpairs x hx y hy)
+  have hreal :
+      c * Metric.diam T ≤
+        (euclideanSetGaussianWidthENN T).toReal := by
+    calc
+      c * Metric.diam T ≤
+          c * ((euclideanSetGaussianWidthENN T).toReal / c) :=
+        mul_le_mul_of_nonneg_left hdiam hc.le
+      _ = (euclideanSetGaussianWidthENN T).toReal := by
+        field_simp [ne_of_gt hc]
+  simpa [c, ENNReal.ofReal_toReal hwtop] using
+    (ENNReal.ofReal_le_ofReal hreal)
+
+/-- Source-facing two-sided diameter bound for the authoritative
+extended-valued width of an actual bounded Euclidean set.
+
+**Book Proposition 7.5.2(f).** -/
+theorem euclideanSetGaussianWidthENN_diameter_bounds
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (_hT : T.Nonempty) (hTb : Bornology.IsBounded T) :
+    ENNReal.ofReal
+          ((1 / Real.sqrt (2 * Real.pi) : ℝ) * Metric.diam T) ≤
+        euclideanSetGaussianWidthENN T ∧
+      euclideanSetGaussianWidthENN T ≤
+        ENNReal.ofReal
+          (Real.sqrt n / 2 * Metric.diam T) :=
+  ⟨euclideanSetGaussianWidthENN_lower_diameter hTb,
+    euclideanSetGaussianWidthENN_le_sqrt_dim_mul_diameter hTb⟩
+
+/-- Safe real form of the diameter lower bound for an actual bounded set.
+
+**Book Proposition 7.5.2(f).** -/
+theorem euclideanSetGaussianWidth_lower_diameter
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (hTb : Bornology.IsBounded T) :
+    (1 / Real.sqrt (2 * Real.pi) : ℝ) * Metric.diam T ≤
+      euclideanSetGaussianWidth T := by
+  have hwtop : euclideanSetGaussianWidthENN T ≠ ⊤ :=
+    ne_top_of_le_ne_top ENNReal.ofReal_ne_top
+      (euclideanSetGaussianWidthENN_le_sqrt_dim_mul_diameter hTb)
+  have hto := ENNReal.toReal_mono hwtop
+    (euclideanSetGaussianWidthENN_lower_diameter hTb)
+  rw [ENNReal.toReal_ofReal
+    (mul_nonneg (by positivity) Metric.diam_nonneg)] at hto
+  exact hto
+
+/-- Safe real form of the dimension-dependent diameter upper bound for an
+actual bounded set.
+
+**Book Proposition 7.5.2(f).** -/
+theorem euclideanSetGaussianWidth_le_sqrt_dim_mul_diameter
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (hTb : Bornology.IsBounded T) :
+    euclideanSetGaussianWidth T ≤
+      Real.sqrt n / 2 * Metric.diam T := by
+  have hto := ENNReal.toReal_mono ENNReal.ofReal_ne_top
+    (euclideanSetGaussianWidthENN_le_sqrt_dim_mul_diameter hTb)
+  rw [ENNReal.toReal_ofReal
+    (mul_nonneg (by positivity) Metric.diam_nonneg)] at hto
+  exact hto
+
+/-- Source-facing two-sided real diameter bound for an actual nonempty
+bounded Euclidean set.
+
+**Book Proposition 7.5.2(f).** -/
+theorem euclideanSetGaussianWidth_diameter_bounds
+    {n : ℕ} {T : Set (EuclideanSpace ℝ (Fin n))}
+    (_hT : T.Nonempty) (hTb : Bornology.IsBounded T) :
+    (1 / Real.sqrt (2 * Real.pi) : ℝ) * Metric.diam T ≤
+        euclideanSetGaussianWidth T ∧
+      euclideanSetGaussianWidth T ≤
+        Real.sqrt n / 2 * Metric.diam T :=
+  ⟨euclideanSetGaussianWidth_lower_diameter hTb,
+    euclideanSetGaussianWidth_le_sqrt_dim_mul_diameter hTb⟩
+
+/-! ### Safe real algebraic laws -/
+
+/-- Safe real arbitrary-set Gaussian width is absolutely homogeneous.
+
+**Book Proposition 7.5.2(d).** -/
+theorem euclideanSetGaussianWidth_scale
+    {n : ℕ} (a : ℝ)
+    (T : Set (EuclideanSpace ℝ (Fin n))) :
+    euclideanSetGaussianWidth (scaleEuclideanSet a T) =
+      |a| * euclideanSetGaussianWidth T := by
+  unfold euclideanSetGaussianWidth
+  rw [euclideanSetGaussianWidthENN_scale,
+    ENNReal.toReal_mul, ENNReal.toReal_ofReal (abs_nonneg a)]
+
+/-- Safe real Gaussian width of a Minkowski sum of two nonempty bounded
+sets is the sum of their widths.
+
+**Book Proposition 7.5.2(d).** -/
+theorem euclideanSetGaussianWidth_minkowskiSum
+    {n : ℕ} (T S : Set (EuclideanSpace ℝ (Fin n)))
+    (hT : T.Nonempty) (hS : S.Nonempty)
+    (hTb : Bornology.IsBounded T)
+    (hSb : Bornology.IsBounded S) :
+    euclideanSetGaussianWidth (minkowskiSumEuclideanSet T S) =
+      euclideanSetGaussianWidth T +
+        euclideanSetGaussianWidth S := by
+  have hWT : euclideanSetGaussianWidthENN T ≠ ⊤ :=
+    ne_top_of_le_ne_top ENNReal.ofReal_ne_top
+      (euclideanSetGaussianWidthENN_le_sqrt_dim_mul_diameter hTb)
+  have hWS : euclideanSetGaussianWidthENN S ≠ ⊤ :=
+    ne_top_of_le_ne_top ENNReal.ofReal_ne_top
+      (euclideanSetGaussianWidthENN_le_sqrt_dim_mul_diameter hSb)
+  unfold euclideanSetGaussianWidth
+  rw [euclideanSetGaussianWidthENN_minkowskiSum T S hT hS,
+    ENNReal.toReal_add hWT hWS]
+
+/-- Safe real Gaussian width of a difference of two nonempty bounded sets
+is the sum of their widths.
+
+**Book Proposition 7.5.2(e).** -/
+theorem euclideanSetGaussianWidth_difference
+    {n : ℕ} (T S : Set (EuclideanSpace ℝ (Fin n)))
+    (hT : T.Nonempty) (hS : S.Nonempty)
+    (hTb : Bornology.IsBounded T)
+    (hSb : Bornology.IsBounded S) :
+    euclideanSetGaussianWidth (differenceEuclideanSet T S) =
+      euclideanSetGaussianWidth T +
+        euclideanSetGaussianWidth S := by
+  unfold differenceEuclideanSet
+  rw [euclideanSetGaussianWidth_minkowskiSum T
+      (scaleEuclideanSet (-1) S) hT (hS.image _)
+      hTb ((lipschitzWith_smul (-1)).isBounded_image hSb),
+    euclideanSetGaussianWidth_scale]
+  norm_num
+
+/-- Safe real width is half the width of the difference set for a nonempty
+bounded set.
+
+**Book Proposition 7.5.2(e).** -/
+theorem euclideanSetGaussianWidth_eq_half_difference
+    {n : ℕ} (T : Set (EuclideanSpace ℝ (Fin n)))
+    (hT : T.Nonempty) (hTb : Bornology.IsBounded T) :
+    euclideanSetGaussianWidth T =
+      (1 / 2 : ℝ) *
+        euclideanSetGaussianWidth
+          (differenceEuclideanSet T T) := by
+  rw [euclideanSetGaussianWidth_difference T T hT hT hTb hTb]
+  ring
+
+/-! ### Continuous linear images of actual sets -/
+
+/-- Image of an arbitrary Euclidean set under a continuous linear map.
+
+**Lean implementation helper.** -/
+def continuousLinearImageEuclideanSet {d e : ℕ}
+    (A : EuclideanSpace ℝ (Fin d) →L[ℝ]
+      EuclideanSpace ℝ (Fin e))
+    (T : Set (EuclideanSpace ℝ (Fin d))) :
+    Set (EuclideanSpace ℝ (Fin e)) :=
+  A '' T
+
+/-- A continuous linear map increases the authoritative arbitrary-set
+Gaussian-width envelope by at most its operator norm.
+
+**Book Proposition 7.5.2(g).** -/
+theorem euclideanSetGaussianWidthENN_continuousLinearImage
+    {d e : ℕ}
+    (A : EuclideanSpace ℝ (Fin d) →L[ℝ]
+      EuclideanSpace ℝ (Fin e))
+    (T : Set (EuclideanSpace ℝ (Fin d))) :
+    euclideanSetGaussianWidthENN
+        (continuousLinearImageEuclideanSet A T) ≤
+      ENNReal.ofReal ‖A‖ * euclideanSetGaussianWidthENN T := by
+  classical
+  rw [euclideanSetGaussianWidthENN_eq_iSup_admissible]
+  apply iSup_le
+  intro F
+  have hchoice :
+      ∀ z : EuclideanSpace ℝ (Fin e),
+        ∃ x : EuclideanSpace ℝ (Fin d), x ∈ T ∧
+          (z ∈ F.1 → z = A x) := by
+    intro z
+    by_cases hz : z ∈ F.1
+    · rcases F.2.1 hz with ⟨x, hx, hAx⟩
+      exact ⟨x, hx, fun _ => hAx.symm⟩
+    · obtain ⟨z0, hz0⟩ := F.2.2
+      rcases F.2.1 hz0 with ⟨x0, hx0, hAx0⟩
+      exact ⟨x0, hx0, fun hzF => (hz hzF).elim⟩
+  choose x hxT hzx using hchoice
+  let G : Finset (EuclideanSpace ℝ (Fin d)) := F.1.image x
+  have hG : G.Nonempty := F.2.2.image x
+  have hGT : (G : Set (EuclideanSpace ℝ (Fin d))) ⊆ T := by
+    intro z hz
+    rcases Finset.mem_image.mp hz with ⟨w, hw, rfl⟩
+    exact hxT w
+  have hFimage :
+      F.1 ⊆ HDP.Chapter7.continuousLinearImageFinset A G := by
+    intro z hz
+    unfold HDP.Chapter7.continuousLinearImageFinset
+    exact Finset.mem_image.mpr
+      ⟨x z, Finset.mem_image.mpr ⟨z, hz, rfl⟩,
+        (hzx z hz).symm⟩
+  have hmono :
+      HDP.Chapter7.gaussianWidth F.1 ≤
+        HDP.Chapter7.gaussianWidth
+          (HDP.Chapter7.continuousLinearImageFinset A G) :=
+    HDP.Chapter7.gaussianWidth_mono F.2.2
+      (HDP.Chapter7.continuousLinearImageFinset_nonempty A hG)
+      hFimage
+  calc
+    ENNReal.ofReal (HDP.Chapter7.gaussianWidth F.1) ≤
+        ENNReal.ofReal
+          (HDP.Chapter7.gaussianWidth
+            (HDP.Chapter7.continuousLinearImageFinset A G)) :=
+      ENNReal.ofReal_le_ofReal hmono
+    _ ≤ ENNReal.ofReal
+        (‖A‖ * HDP.Chapter7.gaussianWidth G) :=
+      ENNReal.ofReal_le_ofReal
+        (HDP.Chapter7.gaussianWidth_continuousLinearImage A G hG)
+    _ = ENNReal.ofReal ‖A‖ *
+        ENNReal.ofReal (HDP.Chapter7.gaussianWidth G) := by
+      rw [ENNReal.ofReal_mul (norm_nonneg A)]
+    _ ≤ ENNReal.ofReal ‖A‖ *
+        euclideanSetGaussianWidthENN T := by
+      gcongr
+      exact finiteGaussianWidth_le_euclideanSetGaussianWidthENN
+        G hGT hG
+
+/-- Safe real form of the arbitrary bounded-set continuous-linear-image
+bound.
+
+**Book Proposition 7.5.2(g).** -/
+theorem euclideanSetGaussianWidth_continuousLinearImage
+    {d e : ℕ}
+    (A : EuclideanSpace ℝ (Fin d) →L[ℝ]
+      EuclideanSpace ℝ (Fin e))
+    (T : Set (EuclideanSpace ℝ (Fin d)))
+    (_hT : T.Nonempty) (hTb : Bornology.IsBounded T) :
+    euclideanSetGaussianWidth
+        (continuousLinearImageEuclideanSet A T) ≤
+      ‖A‖ * euclideanSetGaussianWidth T := by
+  have hWT : euclideanSetGaussianWidthENN T ≠ ⊤ :=
+    ne_top_of_le_ne_top ENNReal.ofReal_ne_top
+      (euclideanSetGaussianWidthENN_le_sqrt_dim_mul_diameter hTb)
+  have hright :
+      ENNReal.ofReal ‖A‖ * euclideanSetGaussianWidthENN T ≠ ⊤ :=
+    ENNReal.mul_ne_top ENNReal.ofReal_ne_top hWT
+  have hto := ENNReal.toReal_mono hright
+    (euclideanSetGaussianWidthENN_continuousLinearImage A T)
+  rw [ENNReal.toReal_mul,
+    ENNReal.toReal_ofReal (norm_nonneg A)] at hto
+  exact hto
 
 /-- Shows that the real-valued finite Euclidean Dudley functional is nonnegative.
 

@@ -14,6 +14,10 @@ namespace HDP.Chapter1
 
 open Real
 
+/-- The upper logarithmic Robbins remainder bound for the normalized Stirling
+sequence.
+
+**Lean implementation helper.** -/
 theorem log_stirlingSeq_robbins_upper {n : ℕ} (hn : 1 ≤ n) :
     Real.log (Stirling.stirlingSeq n) ≤
       Real.log (Real.sqrt Real.pi) + 1 / (12 * (n : ℝ)) := by
@@ -71,6 +75,10 @@ theorem log_stirlingSeq_robbins_upper {n : ℕ} (hn : 1 ≤ n) :
   have hbound := le_of_tendsto_of_tendsto ht hr (Eventually.of_forall hfinite)
   simpa only [sub_zero, add_comm] using (sub_le_iff_le_add.mp hbound)
 
+/-- The one-step lower Robbins remainder bound for the normalized Stirling
+sequence.
+
+**Lean implementation helper.** -/
 theorem log_stirlingSeq_sdiff_robbins_lower {n : ℕ} (hn : 1 ≤ n) :
     1 / (12 * (n : ℝ) + 1) - 1 / (12 * ((n + 1 : ℕ) : ℝ) + 1) ≤
       Real.log (Stirling.stirlingSeq n) -
@@ -100,6 +108,10 @@ theorem log_stirlingSeq_sdiff_robbins_lower {n : ℕ} (hn : 1 ≤ n) :
     nlinarith [sq_nonneg (m : ℝ)]
   simpa [Nat.add_assoc] using halg.trans hterm
 
+/-- The lower logarithmic Robbins remainder bound for the normalized Stirling
+sequence.
+
+**Lean implementation helper.** -/
 theorem log_stirlingSeq_robbins_lower {n : ℕ} (hn : 1 ≤ n) :
     Real.log (Real.sqrt Real.pi) + 1 / (12 * (n : ℝ) + 1) ≤
       Real.log (Stirling.stirlingSeq n) := by
@@ -160,7 +172,9 @@ theorem log_stirlingSeq_robbins_lower {n : ℕ} (hn : 1 ≤ n) :
   have hbound := le_of_tendsto_of_tendsto hl hr (Eventually.of_forall hfinite)
   linarith
 
-/-- Robbins' exact global two-sided nonasymptotic Stirling estimate. -/
+/-- Robbins' exact global two-sided nonasymptotic Stirling estimate.
+
+**Book Lemma 1.7.7, following notes.** -/
 theorem factorial_robbins_two_sided {n : ℕ} (hn : 1 ≤ n) :
     Real.sqrt (2 * Real.pi * n) * ((n : ℝ) / Real.exp 1) ^ n *
           Real.exp (1 / (12 * (n : ℝ) + 1)) ≤ (n.factorial : ℝ) ∧

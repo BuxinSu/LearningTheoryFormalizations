@@ -1,7 +1,7 @@
 name = "LeanProbabilityFormalizations"
 version = "0.1.0"
 keywords = ["math", "probability", "random-matrices", "formalization"]
-defaultTargets = ["HighDimensionalProbability", "MatrixConcentration"]
+defaultTargets = ["MatrixConcentration", "HighDimensionalProbability"]
 
 [leanOptions]
 pp.unicode.fun = true
