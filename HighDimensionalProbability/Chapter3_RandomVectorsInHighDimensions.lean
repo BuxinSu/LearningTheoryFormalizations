@@ -10271,6 +10271,70 @@ end HDP
 
 namespace HDP.Chapter3
 
+/-- The `±1` vertex labeling associated with a cut: vertices in `s` receive
+label `1`, and vertices outside `s` receive label `-1`.
+
+**Book Equation (3.31).** -/
+noncomputable def graphCutLabel {V : Type*} (s : Set V) (i : V) : ℝ := by
+  classical
+  exact if i ∈ s then 1 else -1
+
+/-- The adjacency-matrix objective (3.31) is exactly the cardinality of the
+graph cut. The proof expands the ordered adjacency sum and applies the
+degree-sum formula to the bipartite graph of crossing edges.
+
+**Book Equations (3.31)–(3.32).** -/
+theorem graphCutObjective_eq_cutValue
+    {V : Type*} [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj]
+    (s : Set V) :
+    HDP.cutMatrixObjective (G.adjMatrix ℝ) (graphCutLabel s) =
+      HDP.SimpleGraph.cutValue G s := by
+  classical
+  let H := G.between s sᶜ
+  have hpoint (i j : V) :
+      G.adjMatrix ℝ i j *
+          (1 - graphCutLabel s i * graphCutLabel s j) =
+        2 * (if H.Adj i j then (1 : ℝ) else 0) := by
+    simp only [SimpleGraph.adjMatrix_apply, graphCutLabel, H,
+      SimpleGraph.between_adj]
+    by_cases hij : G.Adj i j <;> by_cases hi : i ∈ s <;>
+      by_cases hj : j ∈ s <;> norm_num [hij, hi, hj]
+  have hsum :
+      (∑ i : V, ∑ j : V, if H.Adj i j then (1 : ℝ) else 0) =
+        2 * (H.edgeFinset.card : ℝ) := by
+    calc
+      (∑ i : V, ∑ j : V, if H.Adj i j then (1 : ℝ) else 0) =
+          ∑ i : V, (H.degree i : ℝ) := by
+            apply Finset.sum_congr rfl
+            intro i hi
+            symm
+            exact H.degree_eq_sum_if_adj (R := ℝ) i
+      _ = ((∑ i : V, H.degree i : ℕ) : ℝ) := by simp
+      _ = 2 * (H.edgeFinset.card : ℝ) := by
+        rw [H.sum_degrees_eq_twice_card_edges]
+        norm_num
+  have hcut :
+      HDP.SimpleGraph.cutValue G s = (H.edgeFinset.card : ℝ) := by
+    unfold HDP.SimpleGraph.cutValue HDP.SimpleGraph.cutSize
+    congr 2
+    apply Finset.ext
+    intro e
+    simp only [SimpleGraph.mem_edgeFinset, H]
+  unfold HDP.cutMatrixObjective
+  rw [hcut]
+  simp_rw [hpoint]
+  calc
+    (1 / 4 : ℝ) * ∑ i : V, ∑ j : V,
+        2 * (if H.Adj i j then (1 : ℝ) else 0) =
+        (1 / 4 : ℝ) *
+          (2 * ∑ i : V, ∑ j : V, if H.Adj i j then (1 : ℝ) else 0) := by
+            congr 1
+            rw [Finset.mul_sum]
+            apply Finset.sum_congr rfl
+            intro i hi
+            rw [Finset.mul_sum]
+    _ = (H.edgeFinset.card : ℝ) := by rw [hsum]; ring
+
 /-- The plus-or-minus sign map `pmSign` is Borel measurable.
 
 **Lean implementation helper.** -/

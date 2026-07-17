@@ -99,7 +99,7 @@ When a result is already available in Mathlib, the development uses or specializ
 
 ## Book → Lean correspondence
 
-This table records **596 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
+This table records **591 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
 
 ### Appetizer — Using Probability to Cover a Set
 
@@ -289,6 +289,7 @@ This table records **596 verified results** from the second-edition PDF. Each ro
 | Theorem 3.5.7 | For symmetric PSD `A`, attained maxima satisfy `int(A)<=sdp(A)<=2K int(A)`. | `HDP.Chapter3.sdp_relaxation_guarantee` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Definition 3.6.1 | Cut size and maximum cut of a finite graph. | `HDP.SimpleGraph.cutSize` | [`Prelude/SimpleGraph.lean`](Prelude/SimpleGraph.lean) |
 | Definition 3.6.2 | Adjacency matrix of a finite graph. | `SimpleGraph.adjMatrix` | `.lake/packages/mathlib/Mathlib/Combinatorics/SimpleGraph/AdjMatrix.lean` |
+| (3.31) | For the `±1` labels determined by a vertex subset, the adjacency-matrix objective is exactly the number of crossing edges. | `HDP.Chapter3.graphCutObjective_eq_cutValue` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.34) | Gaussian hyperplane rounding labels each vertex by `sign <X_i,g>`. | `HDP.Chapter3.gaussianRoundingLabel` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Lemma 3.6.5 | Grothendieck sign/arcsine identity for correlated Gaussian signs. | `HDP.Chapter3.grothendieckSignArcsin` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.35) | `2 arccos(t)/pi >= .878(1-t)` on `[-1,1]`. | `HDP.Chapter3.goemansWilliamson_pairwise_bound` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
