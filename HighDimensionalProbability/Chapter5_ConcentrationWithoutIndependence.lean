@@ -24,6 +24,7 @@ import Mathlib.MeasureTheory.Measure.Haar.Unique
 import Mathlib.Topology.Algebra.Star.Unitary
 import Mathlib.Probability.CDF
 import Mathlib.Analysis.Normed.Algebra.MatrixExponential
+import HighDimensionalProbability.Prelude.SphericalCapGeometry
 import Mathlib.MeasureTheory.Constructions.UnitInterval
 import HighDimensionalProbability.Chapter4_RandomMatrices
 import Mathlib.MeasureTheory.Measure.Prod
