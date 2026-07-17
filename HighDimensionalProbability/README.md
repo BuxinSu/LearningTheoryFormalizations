@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **586 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 58 / 87 / 66 / 39 / 58 / 99 / 61 |
-| Core declarations | 2,397 theorems, 1,005 lemmas, and 778 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **587 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 58 / 88 / 66 / 39 / 58 / 99 / 61 |
+| Core declarations | 2,400 theorems, 1,006 lemmas, and 780 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -303,6 +303,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Theorem 4.1.1 | Every real rectangular matrix has an SVD with nonnegative decreasing singular values and orthonormal left/right families. | `HDP.Chapter4.exists_singularValueDecomposition` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Example 4.1.5 | If `U` has orthonormal columns, then `UU^T` is the rank-`k` orthogonal projection onto their span: it is symmetric and idempotent, fixes the column space, and kills its orthogonal complement. | `HDP.Chapter4.orthogonalProjection_eq_mul_transpose` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Remark 4.1.2 | An SVD stretches right singular directions by their singular values and rotates them to left singular directions. | `HDP.Chapter4.RealSVD.apply_right` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
+| Remark 4.1.3; Eq. (4.4) | Singular families extend to square orthogonal matrices and yield the literal factorization `A=UΣVᵀ`, with rectangular diagonal `Σ`. | `HDP.Chapter4.exists_matrixFormSVD` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Remark 4.1.4 | Left/right singular vectors diagonalize `AA^T`/`A^TA`, and singular values are square roots of both Gram spectra. | `HDP.Chapter4.gram_apply_rightSingularVector` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Theorem 4.1.6 | Courant--Fischer max--min and min--max formulas for ordered eigenvalues. | `HDP.Chapter4.courantFischer` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Corollary 4.1.7 | Courant--Fischer formulas for singular values. | `HDP.Chapter4.singularValueMinMax` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
