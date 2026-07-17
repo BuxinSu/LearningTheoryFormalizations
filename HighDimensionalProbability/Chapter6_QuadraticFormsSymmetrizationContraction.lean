@@ -7920,6 +7920,9 @@ theorem exercise_6_33
       (EuclideanSpace ℝ (Fin n) →L[ℝ] EuclideanSpace ℝ (Fin n)) := borel _
   letI : BorelSpace
       (EuclideanSpace ℝ (Fin n) →L[ℝ] EuclideanSpace ℝ (Fin n)) := ⟨rfl⟩
+  letI : CompleteSpace
+      (EuclideanSpace ℝ (Fin n) →L[ℝ] EuclideanSpace ℝ (Fin n)) :=
+    FiniteDimensional.complete ℝ _
   let e := matrixOperatorEquiv n
   let Zop : Fin N → Ω →
       (EuclideanSpace ℝ (Fin n) →L[ℝ] EuclideanSpace ℝ (Fin n)) :=

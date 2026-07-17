@@ -12530,6 +12530,203 @@ theorem crossPolytopeGaussianWidth_asymptotic
   simpa [iidCrossPolytopeWidth] using
     HDP.Chapter2.exercise_2_38b_max_abs hgm hg hi
 
+/-- A single canonical probability space carrying an infinite independent
+standard-Gaussian sequence. -/
+private noncomputable def canonicalGaussianSequenceMeasure : Measure (ℕ → ℝ) :=
+  Measure.infinitePi (fun _ : ℕ => gaussianReal 0 1)
+
+private def canonicalGaussianSequence (i : ℕ) (ω : ℕ → ℝ) : ℝ := ω i
+
+private lemma canonicalGaussianSequence_measurable (i : ℕ) :
+    Measurable (canonicalGaussianSequence i) := measurable_pi_apply i
+
+private lemma canonicalGaussianSequence_hasLaw (i : ℕ) :
+    HasLaw (canonicalGaussianSequence i) (gaussianReal 0 1)
+      canonicalGaussianSequenceMeasure :=
+  (measurePreserving_eval_infinitePi
+    (fun _ : ℕ => gaussianReal 0 1) i).hasLaw
+
+private lemma canonicalGaussianSequence_iIndep :
+    iIndepFun canonicalGaussianSequence canonicalGaussianSequenceMeasure := by
+  exact iIndepFun_infinitePi
+    (P := fun _ : ℕ => gaussianReal 0 1)
+    (X := fun _ : ℕ => id) (fun _ => measurable_id)
+
+/-- The canonical finite-dimensional cross-polytope width is the expected
+absolute maximum of the corresponding initial segment of one infinite
+independent Gaussian sequence. -/
+private theorem crossPolytopeGaussianWidth_eq_sequence (k : ℕ) :
+    crossPolytopeGaussianWidth (k + 2) =
+      iidCrossPolytopeWidth canonicalGaussianSequenceMeasure
+        canonicalGaussianSequence k := by
+  let μG := canonicalGaussianSequenceMeasure
+  let g := canonicalGaussianSequence
+  let X : (ℕ → ℝ) → EuclideanSpace ℝ (Fin (k + 2)) :=
+    fun ω => WithLp.toLp 2 (fun i => g i ω)
+  have hiFin : iIndepFun (fun i : Fin (k + 2) => g i) μG :=
+    canonicalGaussianSequence_iIndep.precomp Fin.val_injective
+  have hpi : HasLaw
+      (fun (ω : ℕ → ℝ) (i : Fin (k + 2)) => g i ω)
+      (Measure.pi (fun _ : Fin (k + 2) => gaussianReal 0 1)) μG :=
+    hiFin.hasLaw_pi (fun i => canonicalGaussianSequence_hasLaw i)
+  have hX : HasLaw X (stdGaussian (EuclideanSpace ℝ (Fin (k + 2)))) μG := by
+    refine ⟨(WithLp.measurable_toLp 2 (Fin (k + 2) → ℝ)).aemeasurable
+      |>.comp_aemeasurable hpi.aemeasurable, ?_⟩
+    have hto : AEMeasurable (WithLp.toLp 2)
+        (Measure.map
+          (fun (ω : ℕ → ℝ) (i : Fin (k + 2)) => g i ω) μG) := by
+      rw [hpi.map_eq]
+      exact (WithLp.measurable_toLp 2 (Fin (k + 2) → ℝ)).aemeasurable
+    rw [show X = (WithLp.toLp 2) ∘
+        (fun (ω : ℕ → ℝ) (i : Fin (k + 2)) => g i ω) from rfl,
+      ← hto.map_map_of_aemeasurable hpi.aemeasurable, hpi.map_eq,
+      map_pi_eq_stdGaussian]
+  let F : EuclideanSpace ℝ (Fin (k + 2)) → ℝ := fun x =>
+    Finset.univ.sup' Finset.univ_nonempty (fun i => |x i|)
+  have hFm : Measurable F := by
+    dsimp [F]
+    fun_prop
+  rw [crossPolytopeGaussianWidth, dif_pos (by omega),
+    iidCrossPolytopeWidth]
+  simpa [F, X, g, canonicalGaussianSequence,
+    HDP.Chapter2.gaussianMaxAbsSeq_eq_finSup, Function.comp_def] using
+      (hX.integral_comp hFm.aestronglyMeasurable).symm
+
+private lemma integral_abs_canonicalGaussianSequence_zero :
+    (∫ ω, |canonicalGaussianSequence 0 ω|
+        ∂canonicalGaussianSequenceMeasure) =
+      Real.sqrt 2 / Real.sqrt Real.pi := by
+  calc
+    (∫ ω, |canonicalGaussianSequence 0 ω|
+        ∂canonicalGaussianSequenceMeasure) =
+        ∫ x : ℝ, |x| ∂gaussianReal 0 1 := by
+          simpa [Function.comp_def] using
+            (canonicalGaussianSequence_hasLaw 0).integral_comp
+              continuous_abs.aestronglyMeasurable
+    _ = Real.sqrt 2 / Real.sqrt Real.pi := by
+      have h := HDP.Chapter2.gaussian_absolute_moment_measure
+        (p := (1 : ℝ)) le_rfl
+      have hpow : (2 : ℝ) ^ (2 : ℝ)⁻¹ = Real.sqrt 2 := by
+        rw [show (2 : ℝ)⁻¹ = 1 / 2 by norm_num, ← Real.sqrt_eq_rpow]
+      simpa [Real.rpow_one, Real.Gamma_one, hpow] using h
+
+/-- Every nontrivial cross-polytope width is bounded below by the expected
+absolute value of one standard Gaussian coordinate. -/
+private theorem crossPolytopeGaussianWidth_lower_constant (k : ℕ) :
+    Real.sqrt 2 / Real.sqrt Real.pi ≤
+      crossPolytopeGaussianWidth (k + 2) := by
+  rw [crossPolytopeGaussianWidth_eq_sequence, iidCrossPolytopeWidth,
+    ← integral_abs_canonicalGaussianSequence_zero]
+  apply integral_mono
+  · have hm : Integrable abs
+        (Measure.map (canonicalGaussianSequence 0)
+          canonicalGaussianSequenceMeasure) := by
+          rw [(canonicalGaussianSequence_hasLaw 0).map_eq]
+          exact ((memLp_id_gaussianReal'
+            (μ := 0) (v := 1) 1 (by norm_num)).integrable
+              (by norm_num)).abs
+    simpa [Function.comp_def] using
+      (integrable_map_measure continuous_abs.aestronglyMeasurable
+        (canonicalGaussianSequence_hasLaw 0).aemeasurable).mp hm
+  · exact HDP.Chapter2.gaussianMaxAbsSeq_integrable
+      canonicalGaussianSequence_measurable canonicalGaussianSequence_hasLaw k
+  · intro ω
+    rw [HDP.Chapter2.gaussianMaxAbsSeq_eq_finSup]
+    exact Finset.le_sup' (fun i : Fin (k + 2) =>
+      |canonicalGaussianSequence i ω|) (Finset.mem_univ 0)
+
+/-- The actual canonical cross-polytope widths have the sharp Gaussian-maximum
+asymptotic.
+
+**Book Equation (7.19).** -/
+theorem crossPolytopeGaussianWidth_asymptotic_actual :
+    Tendsto (fun k ↦ crossPolytopeGaussianWidth (k + 2) /
+      HDP.Chapter2.gaussianMaxScale k) atTop (𝓝 1) := by
+  simpa [crossPolytopeGaussianWidth_eq_sequence] using
+    crossPolytopeGaussianWidth_asymptotic
+      (mu := canonicalGaussianSequenceMeasure) canonicalGaussianSequence
+      canonicalGaussianSequence_measurable canonicalGaussianSequence_hasLaw
+      canonicalGaussianSequence_iIndep
+
+private lemma gaussianMaxScale_mono {k K : ℕ} (hkK : k ≤ K) :
+    HDP.Chapter2.gaussianMaxScale k ≤
+      HDP.Chapter2.gaussianMaxScale K := by
+  unfold HDP.Chapter2.gaussianMaxScale
+  gcongr
+
+/-- Direct finite two-sided comparison for the actual canonical
+cross-polytope widths.
+
+**Book Example 7.5.8; Equation (7.19).** -/
+theorem crossPolytopeGaussianWidth_twoSided :
+    ∃ c C : ℝ, 0 < c ∧ 0 < C ∧ ∀ k : ℕ,
+      c * HDP.Chapter2.gaussianMaxScale k ≤
+          crossPolytopeGaussianWidth (k + 2) ∧
+        crossPolytopeGaussianWidth (k + 2) ≤
+          C * HDP.Chapter2.gaussianMaxScale k := by
+  have hevent :
+      ∀ᶠ k : ℕ in atTop,
+        (1 / 2 : ℝ) <
+          crossPolytopeGaussianWidth (k + 2) /
+            HDP.Chapter2.gaussianMaxScale k :=
+    crossPolytopeGaussianWidth_asymptotic_actual.eventually
+      (Ioi_mem_nhds (by norm_num))
+  rw [eventually_atTop] at hevent
+  obtain ⟨K, hK⟩ := hevent
+  let a : ℝ := Real.sqrt 2 / Real.sqrt Real.pi
+  let c : ℝ := min (1 / 2) (a / HDP.Chapter2.gaussianMaxScale K)
+  refine ⟨c, Real.sqrt 2, ?_, Real.sqrt_pos.2 (by norm_num), ?_⟩
+  · have ha : 0 < a := by
+      dsimp [a]
+      positivity
+    exact lt_min (by norm_num)
+      (div_pos ha (HDP.Chapter2.gaussianMaxScale_pos K))
+  · intro k
+    constructor
+    · by_cases hk : K ≤ k
+      · have hratio := hK k hk
+        rw [lt_div_iff₀ (HDP.Chapter2.gaussianMaxScale_pos k)] at hratio
+        exact (mul_le_mul_of_nonneg_right (min_le_left _ _)
+          (HDP.Chapter2.gaussianMaxScale_pos k).le).trans hratio.le
+      · have hscale := gaussianMaxScale_mono (Nat.le_of_lt (lt_of_not_ge hk))
+        have hc : c ≤ a / HDP.Chapter2.gaussianMaxScale K :=
+          min_le_right _ _
+        calc
+          c * HDP.Chapter2.gaussianMaxScale k ≤
+              (a / HDP.Chapter2.gaussianMaxScale K) *
+                HDP.Chapter2.gaussianMaxScale k := by
+                  exact mul_le_mul_of_nonneg_right hc
+                    (HDP.Chapter2.gaussianMaxScale_pos k).le
+          _ ≤ (a / HDP.Chapter2.gaussianMaxScale K) *
+                HDP.Chapter2.gaussianMaxScale K := by
+                  exact mul_le_mul_of_nonneg_left hscale
+                    (div_nonneg (by dsimp [a]; positivity)
+                      (HDP.Chapter2.gaussianMaxScale_pos K).le)
+          _ = a := by
+            field_simp [ne_of_gt (HDP.Chapter2.gaussianMaxScale_pos K)]
+          _ ≤ crossPolytopeGaussianWidth (k + 2) :=
+            crossPolytopeGaussianWidth_lower_constant k
+    · have hu := crossPolytopeGaussianWidth_upper k
+      have hn : (2 : ℝ) ≤ k + 2 := by
+        exact_mod_cast (by omega : 2 ≤ k + 2)
+      have hlog : Real.log 2 ≤ Real.log (k + 2 : ℝ) :=
+        Real.log_le_log (by norm_num) hn
+      have harg :
+          2 * Real.log (2 * (k + 2 : ℝ)) ≤
+            4 * Real.log (k + 2 : ℝ) := by
+        rw [Real.log_mul (by norm_num) (by positivity)]
+        nlinarith
+      calc
+        crossPolytopeGaussianWidth (k + 2) ≤
+            Real.sqrt (2 * Real.log (2 * (k + 2 : ℝ))) := hu
+        _ ≤ Real.sqrt (4 * Real.log (k + 2 : ℝ)) :=
+          Real.sqrt_le_sqrt harg
+        _ = Real.sqrt 2 * HDP.Chapter2.gaussianMaxScale k := by
+          rw [HDP.Chapter2.gaussianMaxScale,
+            ← Real.sqrt_mul (by positivity : 0 ≤ (2 : ℝ))]
+          congr 1
+          ring
+
 /-- Width of a finite family, retaining its supplied indexing.
 
 **Lean implementation helper.** -/
@@ -16202,7 +16399,8 @@ private theorem map_contractionCLM_stdGaussian_aux {m n : ℕ}
   apply IsGaussian.ext
   · change (∫ x, x ∂μ.map (contractionCLM_aux z)) =
       ∫ x, x ∂stdGaussian (EuclideanSpace ℝ (Fin n))
-    rw [(contractionCLM_aux z).integral_id_map IsGaussian.integrable_id,
+    rw [ContinuousLinearMap.integral_id_map (μ := μ)
+        IsGaussian.integrable_id (contractionCLM_aux z),
       integral_id_stdGaussian, map_zero, integral_id_stdGaussian]
   · ext u v
     change covarianceBilin (μ.map (contractionCLM_aux z)) u v =

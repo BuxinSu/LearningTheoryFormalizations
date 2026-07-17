@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **604 verified results** |
+| Book → Lean correspondence | **605 verified results** |
 | Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,438 theorems, 1,006 lemmas, and 795 ordinary definitions across the shared foundations and consolidated modules |
+| Core declarations | 2,442 theorems, 1,010 lemmas, and 797 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -551,6 +551,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Lemma 7.5.5 | Gaussian width equals mean Gaussian radius times spherical width, so the two differ by a `sqrt n` factor. | `HDP.Chapter7.gaussianWidth_eq_radialMean_mul_sphericalWidth` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Example 7.5.6 | The Euclidean unit ball and sphere have Gaussian width comparable to `sqrt n`. | `HDP.Chapter7.euclideanBallGaussianWidth` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Example 7.5.7 | The cube has Gaussian width exactly `sqrt(2/pi) n`. | `HDP.Chapter7.cubeGaussianWidth_eq_source` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
+| Example 7.5.8; (7.19) | The actual canonical cross-polytope widths are uniformly comparable to `sqrt(log n)` and have the sharp Gaussian-maximum asymptotic. | `HDP.Chapter7.crossPolytopeGaussianWidth_twoSided` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Example 7.5.9 | A finite point set has Gaussian width at most a universal constant times diameter times `sqrt(log cardinality)`. | `HDP.Chapter7.gaussianFamilyWidth_unit_upper` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Lemma 7.5.11 | Gaussian width, Gaussian complexity, and the `L2`-supremum variant are equivalent up to universal constants. | `HDP.Chapter7.almostEquivalentGaussianWidths` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
 | Definition 7.5.12 | Effective dimension is width-squared divided by diameter-squared and is bounded by affine dimension. | `HDP.Chapter7.effectiveDimension` | [`Chapter7_RandomProcesses.lean`](Chapter7_RandomProcesses.lean) |
