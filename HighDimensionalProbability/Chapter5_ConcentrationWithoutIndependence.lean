@@ -41,7 +41,8 @@ import Mathlib.Analysis.InnerProductSpace.JointEigenspace
   blow-up (Lemma 5.1.6)
 - §5.2 Concentration on other metric-measure spaces — Gaussian, Hamming-cube,
   permutation, Grassmannian, convex-body, and product-measure concentration
-  (Theorems 5.2.2--5.2.12)
+  (Theorems 5.2.2--5.2.12), including existence and comparison of medians
+  (Remark 5.2.1)
 - §5.3 Johnson--Lindenstrauss lemma — dimension reduction (Theorem 5.3.1) and
   random-projection concentration (Lemma 5.3.2)
 - §5.4 Matrix Bernstein inequality — matrix Bernstein (Theorem 5.4.1),
@@ -1425,6 +1426,89 @@ def IsMedian {T : Type*} [MeasurableSpace T]
     (X : T → ℝ) (M : ℝ) (μ : Measure T) : Prop :=
   (1 / 2 : ℝ) ≤ μ.real {x | X x ≤ M} ∧
     (1 / 2 : ℝ) ≤ μ.real {x | M ≤ X x}
+
+/-- Every real probability measure has a median. The construction takes the
+infimum of the points where the CDF reaches one half. Right continuity gives
+the lower-half inequality, while the left limit controls the open lower tail
+and hence gives the upper-half inequality.
+
+**Book pages 145–146 (median existence used in Remark 5.2.1).** -/
+theorem exists_measureMedian (ν : Measure ℝ) [IsProbabilityMeasure ν] :
+    ∃ M : ℝ, (1 / 2 : ℝ) ≤ ν.real (Set.Iic M) ∧
+      (1 / 2 : ℝ) ≤ ν.real (Set.Ici M) := by
+  let S : Set ℝ := {x | (1 / 2 : ℝ) ≤ cdf ν x}
+  have hSne : S.Nonempty := by
+    have hev : ∀ᶠ x : ℝ in atTop, (3 / 4 : ℝ) < cdf ν x :=
+      (tendsto_order.1 (tendsto_cdf_atTop ν)).1 (3 / 4) (by norm_num)
+    obtain ⟨a, ha⟩ := eventually_atTop.1 hev
+    refine ⟨a, ?_⟩
+    exact (by norm_num : (1 / 2 : ℝ) ≤ 3 / 4).trans
+      (ha a le_rfl).le
+  have hSbdd : BddBelow S := by
+    have hev : ∀ᶠ x : ℝ in atBot, cdf ν x < (1 / 2 : ℝ) :=
+      (tendsto_order.1 (tendsto_cdf_atBot ν)).2 (1 / 2) (by norm_num)
+    obtain ⟨a, ha⟩ := eventually_atBot.1 hev
+    refine ⟨a, ?_⟩
+    intro x hx
+    by_contra hxa
+    have hle : x ≤ a := le_of_not_ge hxa
+    exact (not_lt_of_ge hx) (ha x hle)
+  let M : ℝ := sInf S
+  have hbelow (x : ℝ) (hx : x < M) :
+      cdf ν x < (1 / 2 : ℝ) := by
+    apply lt_of_not_ge
+    intro hxhalf
+    have hxS : x ∈ S := hxhalf
+    exact (not_le_of_gt hx) (csInf_le hSbdd hxS)
+  have habove (x : ℝ) (hx : M < x) :
+      (1 / 2 : ℝ) ≤ cdf ν x := by
+    obtain ⟨s, hsS, hsx⟩ :=
+      (csInf_lt_iff hSbdd hSne).1 hx
+    exact hsS.trans (monotone_cdf ν hsx.le)
+  have hleft :
+      Function.leftLim (cdf ν) M ≤ (1 / 2 : ℝ) := by
+    rw [(monotone_cdf ν).leftLim_eq_sSup
+      (Filter.NeBot.ne (nhdsLT_neBot M))]
+    apply csSup_le
+    · exact (nonempty_Iio : (Set.Iio M).Nonempty).image _
+    · rintro y ⟨x, hx, rfl⟩
+      exact (hbelow x hx).le
+  have hright : (1 / 2 : ℝ) ≤ cdf ν M := by
+    rw [← (cdf ν).rightLim_eq M,
+      (monotone_cdf ν).rightLim_eq_sInf
+        (Filter.NeBot.ne (nhdsGT_neBot M))]
+    apply le_csInf
+    · exact (nonempty_Ioi : (Set.Ioi M).Nonempty).image _
+    · rintro y ⟨x, hx, rfl⟩
+      exact habove x hx
+  refine ⟨M, ?_, ?_⟩
+  · simpa [cdf_eq_real] using hright
+  · rw [measureReal_def, ← measure_cdf ν,
+      (cdf ν).measure_Ici (tendsto_cdf_atTop ν),
+      ENNReal.toReal_ofReal]
+    · linarith
+    · linarith
+
+/-- Every a.e.-measurable real random variable on a probability space has a
+measure-theoretic median, including variables with atoms.
+
+**Book pages 145–146 (median existence used in Remark 5.2.1).** -/
+theorem exists_isMedian
+    {T : Type*} [MeasurableSpace T] {μ : Measure T}
+    [IsProbabilityMeasure μ] (X : T → ℝ) (hX : AEMeasurable X μ) :
+    ∃ M : ℝ, IsMedian X M μ := by
+  let ν : Measure ℝ := μ.map X
+  letI : IsProbabilityMeasure ν := Measure.isProbabilityMeasure_map hX
+  obtain ⟨M, hleft, hright⟩ := exists_measureMedian ν
+  refine ⟨M, ?_, ?_⟩
+  · change (1 / 2 : ℝ) ≤ μ.real (X ⁻¹' Set.Iic M)
+    rw [← MeasureTheory.map_measureReal_apply_of_aemeasurable hX
+      measurableSet_Iic]
+    simpa [ν] using hleft
+  · change (1 / 2 : ℝ) ≤ μ.real (X ⁻¹' Set.Ici M)
+    rw [← MeasureTheory.map_measureReal_apply_of_aemeasurable hX
+      measurableSet_Ici]
+    simpa [ν] using hright
 
 /-- If `|C|` is at least `d` on a set of mass at least one half, then `d` is at most twice the
 `ψ₂` norm of `C`.
