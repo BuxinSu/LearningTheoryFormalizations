@@ -46,6 +46,7 @@ import Mathlib.Analysis.InnerProductSpace.JointEigenspace
   random-projection concentration (Lemma 5.3.2)
 - §5.4 Matrix Bernstein inequality — matrix Bernstein (Theorem 5.4.1),
   spectral functional calculus and Loewner order (Definitions 5.4.2--5.4.3),
+  the noncommutative failure of scalar monotonicity (Remark 5.4.6),
   Golden--Thompson and Lieb (Theorems 5.4.7--5.4.8), and matrix
   Hoeffding/Khintchine (Theorems 5.4.13--5.4.14)
 - §5.5 Community detection in sparse networks — spectral recovery
@@ -6144,6 +6145,72 @@ theorem matrixNorm_le_iff_loewnerInterval [Nonempty n] {A : Matrix n n ℝ}
         HDP.complexifyMatrix A ≤ (a : ℂ) • (1 : Matrix n n ℂ)) :=
   ⟨matrixNorm_gives_loewnerInterval hA,
     fun h => loewnerInterval_gives_matrixNorm hA h.1 h.2⟩
+
+/-- The first matrix in the explicit counterexample to unrestricted matrix
+monotonicity. -/
+def matrixMonotonicityCounterexampleA : Matrix (Fin 2) (Fin 2) ℝ :=
+  !![1, 0; 0, 0]
+
+/-- The second matrix in the explicit counterexample to unrestricted matrix
+monotonicity. -/
+def matrixMonotonicityCounterexampleB : Matrix (Fin 2) (Fin 2) ℝ :=
+  !![2, 1; 1, 1]
+
+/-- Scalar monotonicity does not imply matrix monotonicity. Both displayed
+matrices are positive semidefinite and `B - A` is positive semidefinite, but
+`B² - A²` has determinant `-1` and hence is not positive semidefinite.
+Thus the increasing scalar function `x ↦ x²` on `[0,∞)` does not preserve
+Loewner order for noncommuting matrices.
+
+**Book Remark 5.4.6; Exercise 5.17.** -/
+theorem square_not_matrixMonotone_counterexample :
+    matrixMonotonicityCounterexampleA.PosSemidef ∧
+      matrixMonotonicityCounterexampleB.PosSemidef ∧
+      (matrixMonotonicityCounterexampleB -
+        matrixMonotonicityCounterexampleA).PosSemidef ∧
+      ¬ (matrixMonotonicityCounterexampleB *
+          matrixMonotonicityCounterexampleB -
+        matrixMonotonicityCounterexampleA *
+          matrixMonotonicityCounterexampleA).PosSemidef := by
+  have hA : matrixMonotonicityCounterexampleA.PosSemidef := by
+    rw [Matrix.posSemidef_iff_dotProduct_mulVec]
+    constructor
+    · ext i j
+      fin_cases i <;> fin_cases j <;>
+        norm_num [matrixMonotonicityCounterexampleA]
+    · intro x
+      simp [matrixMonotonicityCounterexampleA, dotProduct, Matrix.mulVec,
+        Fin.sum_univ_two]
+      simpa [pow_two] using sq_nonneg (x 0)
+  have hB : matrixMonotonicityCounterexampleB.PosSemidef := by
+    rw [Matrix.posSemidef_iff_dotProduct_mulVec]
+    constructor
+    · ext i j
+      fin_cases i <;> fin_cases j <;>
+        norm_num [matrixMonotonicityCounterexampleB]
+    · intro x
+      simp [matrixMonotonicityCounterexampleB, dotProduct, Matrix.mulVec,
+        Fin.sum_univ_two]
+      nlinarith [sq_nonneg (x 0), sq_nonneg (x 0 + x 1)]
+  have hdiff :
+      (matrixMonotonicityCounterexampleB -
+        matrixMonotonicityCounterexampleA).PosSemidef := by
+    rw [Matrix.posSemidef_iff_dotProduct_mulVec]
+    constructor
+    · ext i j
+      fin_cases i <;> fin_cases j <;>
+        norm_num [matrixMonotonicityCounterexampleA,
+          matrixMonotonicityCounterexampleB]
+    · intro x
+      simp [matrixMonotonicityCounterexampleA,
+        matrixMonotonicityCounterexampleB, dotProduct, Matrix.mulVec,
+        Fin.sum_univ_two]
+      nlinarith [sq_nonneg (x 0 + x 1)]
+  refine ⟨hA, hB, hdiff, ?_⟩
+  intro hsq
+  have hd := hsq.det_nonneg
+  norm_num [matrixMonotonicityCounterexampleA,
+    matrixMonotonicityCounterexampleB, Matrix.det_fin_two] at hd
 
 /-- Simultaneous-diagonalization helper for the corresponding exercise. The direct source-facing
 endpoint below constructs this certificate from commutation.
