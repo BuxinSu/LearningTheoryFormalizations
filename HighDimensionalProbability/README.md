@@ -13,7 +13,7 @@ The development covers the main mathematical arc of the book: concentration of i
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
 | Book → Lean correspondence | **601 verified results** |
 | Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 66 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,428 theorems, 1,006 lemmas, and 790 ordinary definitions across the shared foundations and consolidated modules |
+| Core declarations | 2,429 theorems, 1,006 lemmas, and 792 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -451,7 +451,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Eq. (5.11) | Fixed-difference random-projection tail before the union bound. | `HDP.Chapter5.randomProjection_fixedVector_tail` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Eq. (5.12) | Spectral formulas for matrix powers, inverse, and exponential. | `HDP.Chapter5.matrixFunction_power` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Eq. (5.13) | Operator norm is equivalent to the Loewner interval `-aI <= X <= aI`. | `HDP.Chapter5.matrixNorm_le_iff_loewnerInterval` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
-| Eq. (5.14) | Matrix inverse reverses order and matrix logarithm preserves order. | `HDP.Chapter5.inverse_loewner_antitone` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
+| Remark 5.4.6; Eq. (5.14) | Scalar monotonicity need not imply matrix monotonicity; inverse reverses order and matrix logarithm preserves order. | `HDP.Chapter5.square_not_matrixMonotone_counterexample`; `inverse_loewner_antitone`; `logarithm_loewner_monotone` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Eq. (5.15) | Symmetric norm reduces to largest eigenvalues of `S` and `-S`. | `HDP.Chapter5.matrixBernsteinSymmetricTail` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Eq. (5.16) | Exponential Markov/MGF upper-tail step for `lambda_max(S)`. | `HDP.Chapter5.matrixBernsteinTail` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Eq. (5.17) | Iterated Lieb/log-MGF inequality for a sum. | `HDP.Chapter5.randomLiebReal` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
