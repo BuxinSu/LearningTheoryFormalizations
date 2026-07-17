@@ -2095,9 +2095,11 @@ theorem covarianceOperator_reApplyInnerSelf
   apply Finset.sum_congr rfl
   intro j _
   rw [covariance_const_mul_left, covariance_const_mul_right]
-  change v i * (HDP.covarianceMatrix X μ i j * v j) =
-    v j * (v i * HDP.covarianceMatrix X μ i j)
+  change Chapter1.covMatrix X μ i j * v j * v i =
+    v i * (v j * cov[fun ω => X ω i, fun ω => X ω j; μ])
+  rw [Chapter1.covMatrix_apply]
   ring
+  exact (hX.inner_const (𝕜 := ℝ) v).1.aemeasurable
 
 /-- Principal component analysis for an arbitrary square-integrable random
 vector: the `k`th covariance eigenvalue is the maximum variance of a unit
@@ -4131,7 +4133,9 @@ theorem affineGaussianMeasure_eq_multivariateGaussian {n k : ℕ}
         _ = rectangularEuclideanCLM A (∫ a, a ∂stdGaussian
             (EuclideanSpace ℝ (Fin k))) := by
           simpa using (rectangularEuclideanCLM A).integral_comp_comm
-            (φ := fun a => a) IsGaussian.integrable_id
+            (φ := fun a => a)
+            (IsGaussian.integrable_id
+              (μ := stdGaussian (EuclideanSpace ℝ (Fin k))))
         _ = 0 := by rw [integral_id_stdGaussian]; simp
     rw [hLmean, integral_id_multivariateGaussian]
     simp
@@ -4151,15 +4155,15 @@ theorem affineGaussianMeasure_eq_multivariateGaussian {n k : ℕ}
       have hadj (z : EuclideanSpace ℝ (Fin n)) :
           A.toEuclideanLin.toContinuousLinearMap.adjoint z =
             A.transpose.toEuclideanLin z := by
-        have h := congrArg (fun L : EuclideanSpace ℝ (Fin n) →ₗ[ℝ]
-            EuclideanSpace ℝ (Fin k) => L z)
-          (Matrix.toEuclideanLin_conjTranspose_eq_adjoint A)
-        rw [ContinuousLinearMap.adjoint_toLinearMap] at h
-        simpa only [Matrix.conjTranspose_eq_transpose_of_trivial] using h.symm
-      rw [hadj, hadj]
-      rw [real_inner_comm, ContinuousLinearMap.adjoint_inner_left]
-      change inner ℝ x (A.toEuclideanLin (A.transpose.toEuclideanLin y)) = _
+        change A.toEuclideanLin.adjoint z = A.transpose.toEuclideanLin z
+        rw [← Matrix.toEuclideanLin_conjTranspose_eq_adjoint]
+        simp only [Matrix.conjTranspose_eq_transpose_of_trivial]
+      rw [ContinuousLinearMap.adjoint_inner_left, hadj]
+      change inner ℝ x
+        (A.toEuclideanLin (A.transpose.toEuclideanLin y)) = _
       simp [PiLp.inner_apply, Matrix.mulVec_mulVec]
+      rw [dotProduct_comm]
+      rfl
     · simpa only [Matrix.conjTranspose_eq_transpose_of_trivial] using
         Matrix.posSemidef_self_mul_conjTranspose A
 
@@ -5472,20 +5476,26 @@ theorem uniformSphere_inner_sq_expectation (n : ℕ) (hn : 0 < n) :
       ∂(HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))).prod
         (HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n)))) =
       1 / (n : ℝ) := by
+  letI : Nonempty (Fin n) := Fin.pos_iff_nonempty.mp hn
   let sigma := HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))
   let X := HDP.isotropicSphereVector n
   have hcoord (i j : Fin n) :
       Integrable (fun x => X x i * X x j) sigma := by
-    refine Integrable.of_bound (by fun_prop) (n : ℝ) ?_
+    refine Integrable.of_bound ?_ (n : ℝ) ?_
+    · apply Continuous.aestronglyMeasurable
+      dsimp only [X, HDP.isotropicSphereVector, HDP.uniformSphereVector]
+      fun_prop
     filter_upwards with x
     rw [Real.norm_eq_abs, abs_mul]
     have hi : |X x i| ≤ Real.sqrt n := by
       calc
-        |X x i| ≤ ‖X x‖ := PiLp.norm_apply_le _ _
+        |X x i| ≤ ‖X x‖ := by
+          simpa [Real.norm_eq_abs] using PiLp.norm_apply_le (X x) i
         _ = Real.sqrt n := HDP.norm_isotropicSphereVector n x
     have hj : |X x j| ≤ Real.sqrt n := by
       calc
-        |X x j| ≤ ‖X x‖ := PiLp.norm_apply_le _ _
+        |X x j| ≤ ‖X x‖ := by
+          simpa [Real.norm_eq_abs] using PiLp.norm_apply_le (X x) j
         _ = Real.sqrt n := HDP.norm_isotropicSphereVector n x
     calc
       |X x i| * |X x j| ≤ Real.sqrt n * Real.sqrt n :=
@@ -5511,12 +5521,13 @@ theorem uniformSphere_inner_sq_expectation (n : ℕ) (hn : 0 < n) :
             (HDP.uniformSphereVector _ z.2) ^ 2 := by
     simp only [X, HDP.isotropicSphereVector, HDP.uniformSphereVector,
       inner_smul_left, inner_smul_right]
-    rw [Real.sq_sqrt hnR.le]
+    simp only [starRingEnd_apply, star_trivial]
+    rw [← mul_assoc, Real.mul_self_sqrt hnR.le]
     ring
   rw [integral_congr_ae (ae_of_all _ hpoint), integral_const_mul] at hscaled'
   change (∫ z, inner ℝ (HDP.uniformSphereVector _ z.1)
       (HDP.uniformSphereVector _ z.2) ^ 2 ∂sigma.prod sigma) = _
-  apply (mul_left_cancel₀ (pow_ne_zero 2 hnR.ne')).mp
+  apply mul_left_cancel₀ (pow_ne_zero 2 hnR.ne')
   rw [hscaled']
   field_simp
 
@@ -5533,13 +5544,15 @@ theorem uniformSphere_almost_orthogonal (n : ℕ) (hn : 0 < n)
         |inner ℝ (HDP.uniformSphereVector _ z.1)
           (HDP.uniformSphereVector _ z.2)|} ≤ 1 / C ^ 2 := by
   dsimp only
+  letI : Nonempty (Fin n) := Fin.pos_iff_nonempty.mp hn
   let sigma := HDP.unitSphereMeasure (EuclideanSpace ℝ (Fin n))
   let f : Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 ×
       Metric.sphere (0 : EuclideanSpace ℝ (Fin n)) 1 → ℝ :=
     fun z => inner ℝ (HDP.uniformSphereVector _ z.1)
       (HDP.uniformSphereVector _ z.2) ^ 2
   have hfint : Integrable f (sigma.prod sigma) := by
-    refine Integrable.of_bound (by fun_prop) 1 ?_
+    refine Integrable.of_bound ?_ 1 ?_
+    · exact (by fun_prop : Continuous f).aestronglyMeasurable
     filter_upwards with z
     rw [Real.norm_eq_abs, abs_of_nonneg (sq_nonneg _)]
     have hinner : |inner ℝ (z.1 : EuclideanSpace ℝ (Fin n)) z.2| ≤ 1 := by
@@ -5547,8 +5560,10 @@ theorem uniformSphere_almost_orthogonal (n : ℕ) (hn : 0 < n)
         _ ≤ ‖(z.1 : EuclideanSpace ℝ (Fin n))‖ *
             ‖(z.2 : EuclideanSpace ℝ (Fin n))‖ := abs_real_inner_le_norm _ _
         _ = 1 := by simp
-    nlinarith [sq_nonneg
-      (inner ℝ (z.1 : EuclideanSpace ℝ (Fin n)) z.2)]
+    change inner ℝ (z.1 : EuclideanSpace ℝ (Fin n)) z.2 ^ 2 ≤ 1
+    simpa only [sq_abs, one_pow] using
+      (sq_le_sq₀ (abs_nonneg
+        (inner ℝ (z.1 : EuclideanSpace ℝ (Fin n)) z.2)) zero_le_one).mpr hinner
   have hnR : 0 < (n : ℝ) := by exact_mod_cast hn
   have hsqrtn : 0 < Real.sqrt n := Real.sqrt_pos.2 hnR
   have ht : 0 < (C / Real.sqrt n) ^ 2 := sq_pos_of_pos (div_pos hC hsqrtn)
@@ -5561,7 +5576,8 @@ theorem uniformSphere_almost_orthogonal (n : ℕ) (hn : 0 < n)
       {z | (C / Real.sqrt n) ^ 2 ≤ f z} := by
     ext z
     simp only [Set.mem_setOf_eq, f]
-    exact (sq_le_sq₀ (div_nonneg hC.le hsqrtn.le) (abs_nonneg _)).symm
+    simpa only [sq_abs] using
+      (sq_le_sq₀ (div_nonneg hC.le hsqrtn.le) (abs_nonneg _)).symm
   rw [hset]
   calc
     (sigma.prod sigma).real {z | (C / Real.sqrt n) ^ 2 ≤ f z} ≤
@@ -5570,7 +5586,7 @@ theorem uniformSphere_almost_orthogonal (n : ℕ) (hn : 0 < n)
       rw [uniformSphere_inner_sq_expectation n hn]
     _ = 1 / C ^ 2 := by
       rw [div_pow, Real.sq_sqrt hnR.le]
-      field_simp
+      field_simp [hnR.ne', hC.ne']
 
 /-- Identifies `projectiveDenominator` with `norm_div_sqrt`.
 
