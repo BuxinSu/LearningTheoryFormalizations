@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **606 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 60 / 99 / 61 |
-| Core declarations | 2,444 theorems, 1,012 lemmas, and 798 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **607 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 60 / 100 / 61 |
+| Core declarations | 2,447 theorems, 1,012 lemmas, and 798 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -591,6 +591,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Book source | Result | Lean declaration | Final module |
 |---|---|---|---|
 | Definition 8.1.1 | A process has subgaussian increments when every increment has `psi2` norm at most `K` times the index distance. | `HDP.HasSubGaussianIncrementsWith` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
+| Example 8.1.2 | Every Gaussian process, without a centering or finiteness assumption on its index set, has sub-Gaussian increments for its canonical `L²` pseudometric with a universal constant. | `HDP.gaussianProcess_hasSubGaussianIncrementsWith`, `HDP.gaussianProcess_hasSubGaussianIncrements` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Section 8.1 after Example 8.1.2 | Every process with subgaussian increments is tautologically subgaussian for its `psi2` increment metric. | `HDP.hasSubGaussianIncrementsWith_psi2Metric` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Theorem 8.1.3 | Dudley bounds the expected supremum of a centered subgaussian-increment process by the entropy integral. | `HDP.Chapter8.dudleyIntegralInequality_coveringNumber` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |
 | Theorem 8.1.4 | Discrete Dudley bounds the expected supremum by a dyadic entropy sum. | `HDP.Chapter8.discreteDudleyInequality_coveringNumber` | [`Chapter8_Chaining.lean`](Chapter8_Chaining.lean) |

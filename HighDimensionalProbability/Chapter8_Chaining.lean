@@ -37,8 +37,9 @@ import HighDimensionalProbability.Chapter3_RandomVectorsInHighDimensions
 ## Contents
 
 - §8.1 Subgaussian increments and Dudley chaining
-  - Definition 8.1.1, the `ψ₂` increment metric, and Theorems 8.1.3–8.1.4:
-    integral and discrete Dudley bounds
+  - Definition 8.1.1 and Example 8.1.2: `ψ₂` increments of arbitrary Gaussian
+    processes and the tautological `ψ₂` increment metric
+  - Theorems 8.1.3–8.1.4: integral and discrete Dudley bounds
   - Theorem 8.1.8: the Euclidean entropy-integral specialization
 - §8.2 Empirical processes
   - Equations (8.18)–(8.20) and Remarks 8.2.1–8.2.2: Monte Carlo convergence and error
@@ -201,6 +202,140 @@ theorem standardGaussian_inner_subGaussian
     simp only [zero_mul, zero_add]
     nlinarith [sq_nonneg lam, sq_nonneg ‖v‖]
 
+/-- A real Gaussian random variable has `ψ₂` norm bounded by a universal
+constant times its `L²` norm. The variable need not be centered.
+
+**Lean implementation helper.** -/
+theorem gaussian_psi2Norm_le_lpNorm_two
+    {X : Ω → ℝ} (hX : HasGaussianLaw X μ) :
+    SubGaussian X μ ∧
+      psi2Norm X μ ≤
+        (1 / Real.sqrt (Real.log 2) + Real.sqrt (8 / 3)) *
+          Chapter1.lpNormRV X 2 μ := by
+  letI : IsProbabilityMeasure μ := hX.isProbabilityMeasure
+  let m : ℝ := ∫ ω, X ω ∂μ
+  let σ : ℝ := Real.sqrt Var[X; μ]
+  let Z : Ω → ℝ := fun ω ↦ X ω - m
+  let Y : ℝ → ℝ := fun z ↦ inner ℝ σ z
+  have hXmem : MemLp X 2 μ := hX.memLp_two
+  have hXlaw : HasLaw X
+      (gaussianReal m Var[X; μ].toNNReal) μ := by
+    refine ⟨hX.aemeasurable, ?_⟩
+    simpa [m] using hX.map_eq_gaussianReal
+  have hZlaw0 := gaussianReal_sub_const hXlaw m
+  have hσsq : σ ^ 2 = Var[X; μ] := by
+    exact Real.sq_sqrt (variance_nonneg X μ)
+  have hvarNN :
+      Var[X; μ].toNNReal = ⟨σ ^ 2, sq_nonneg σ⟩ := by
+    apply NNReal.eq
+    rw [Real.coe_toNNReal _ (variance_nonneg X μ)]
+    exact hσsq.symm
+  have hZlaw : HasLaw Z
+      (gaussianReal 0 ⟨σ ^ 2, sq_nonneg σ⟩) μ := by
+    simpa [Z, m, hvarNN] using hZlaw0
+  have hYlaw : HasLaw Y
+      (gaussianReal 0 ⟨σ ^ 2, sq_nonneg σ⟩)
+      (stdGaussian ℝ) := by
+    have hv :
+        Chapter3.gaussianMarginalVariance σ =
+          ⟨σ ^ 2, sq_nonneg σ⟩ := by
+      apply NNReal.eq
+      change (Real.toNNReal (‖σ‖ ^ 2) : ℝ) = σ ^ 2
+      rw [Real.coe_toNNReal (‖σ‖ ^ 2) (sq_nonneg ‖σ‖)]
+      simp [Real.norm_eq_abs, sq_abs]
+    simpa [Y, hv] using
+      (Chapter3.standardGaussian_inner_hasLaw (E := ℝ) σ)
+  have hidZY : IdentDistrib Z Y μ (stdGaussian ℝ) :=
+    hZlaw.identDistrib hYlaw
+  have hYsub := (standardGaussian_inner_subGaussian (E := ℝ) σ).1
+  have hZsub : SubGaussian Z μ := by
+    rcases hYsub with ⟨K, hK, hψ⟩
+    refine ⟨K, hK, ?_⟩
+    let ρ := Measure.map Y (stdGaussian ℝ)
+    have hYL : HasLaw Y ρ (stdGaussian ℝ) :=
+      ⟨hidZY.aemeasurable_snd, rfl⟩
+    have hZL : HasLaw Z ρ μ := hidZY.symm.hasLaw hYL
+    rw [psi2MGF_eq_of_hasLaw hZL]
+    rw [psi2MGF_eq_of_hasLaw hYL] at hψ
+    exact hψ
+  have hZnorm :
+      psi2Norm Z μ = σ * Real.sqrt (8 / 3) := by
+    calc
+      psi2Norm Z μ =
+          psi2Norm (id : ℝ → ℝ)
+            (gaussianReal 0 ⟨σ ^ 2, sq_nonneg σ⟩) :=
+        psi2Norm_eq_of_hasLaw hZlaw
+      _ = |σ| * Real.sqrt (8 / 3) :=
+        psi2Norm_gaussian σ
+          (HasLaw.id :
+            HasLaw (id : ℝ → ℝ)
+              (gaussianReal 0 ⟨σ ^ 2, sq_nonneg σ⟩)
+              (gaussianReal 0 ⟨σ ^ 2, sq_nonneg σ⟩))
+      _ = σ * Real.sqrt (8 / 3) := by
+        rw [abs_of_nonneg (Real.sqrt_nonneg _)]
+  have hd0 : 0 ≤ Chapter1.lpNormRV X 2 μ := by
+    rw [Chapter1.lpNormRV]
+    positivity
+  have hdsq :
+      Chapter1.lpNormRV X 2 μ ^ 2 = ∫ ω, X ω ^ 2 ∂μ := by
+    rw [Chapter1.sq_lpNormRV_two_eq_l2InnerRV hXmem]
+    simp [Chapter1.l2InnerRV, pow_two]
+  have hvar := variance_eq_sub hXmem
+  change Var[X; μ] =
+    (∫ ω, X ω ^ 2 ∂μ) - m ^ 2 at hvar
+  have hm_le : |m| ≤ Chapter1.lpNormRV X 2 μ := by
+    have hm2 : m ^ 2 ≤ Chapter1.lpNormRV X 2 μ ^ 2 := by
+      rw [hdsq]
+      nlinarith [variance_nonneg (X := X) (μ := μ)]
+    nlinarith [sq_abs m]
+  have hσ_le : σ ≤ Chapter1.lpNormRV X 2 μ := by
+    have hσ0 : 0 ≤ σ := Real.sqrt_nonneg _
+    have hσ2 : σ ^ 2 ≤ Chapter1.lpNormRV X 2 μ ^ 2 := by
+      rw [hσsq, hdsq]
+      nlinarith [sq_nonneg m]
+    nlinarith
+  have hrawSub : SubGaussian X μ := by
+    by_cases hm : m = 0
+    · have hXZ : X = Z := by
+        funext ω
+        simp [Z, hm]
+      simpa [hXZ] using hZsub
+    · have hmpos : 0 < |m| := abs_pos.mpr hm
+      have hconst : SubGaussian (fun _ : Ω ↦ m) μ :=
+        (psi2Norm_le_of_bounded hmpos
+          (Filter.Eventually.of_forall fun _ ↦ le_rfl)).1
+      have hadd := SubGaussian.add
+        (aemeasurable_const (b := m)) (hX.aemeasurable.sub_const m)
+        hconst hZsub
+      have hsum : (fun ω ↦ m + Z ω) = X := by
+        funext ω
+        simp [Z]
+      simpa [hsum] using hadd
+  refine ⟨hrawSub, ?_⟩
+  have htri := psi2Norm_add_le
+    (aemeasurable_const (b := m)) (hX.aemeasurable.sub_const m)
+    ((psi2Norm_le_of_bounded (show 0 < |m| + 1 by positivity)
+      (Filter.Eventually.of_forall fun _ ↦ by
+        linarith)).1) hZsub
+  have hsum : (fun ω ↦ m + Z ω) = X := by
+    funext ω
+    simp [Z]
+  rw [hsum, psi2Norm_const, hZnorm] at htri
+  calc
+    psi2Norm X μ ≤ |m| / Real.sqrt (Real.log 2) +
+        σ * Real.sqrt (8 / 3) := htri
+    _ ≤ (1 / Real.sqrt (Real.log 2) + Real.sqrt (8 / 3)) *
+        Chapter1.lpNormRV X 2 μ := by
+      have hlog : 0 < Real.sqrt (Real.log 2) := by positivity
+      have hs : 0 ≤ Real.sqrt (8 / 3) := Real.sqrt_nonneg _
+      calc
+        |m| / Real.sqrt (Real.log 2) + σ * Real.sqrt (8 / 3)
+            ≤ Chapter1.lpNormRV X 2 μ / Real.sqrt (Real.log 2) +
+                Chapter1.lpNormRV X 2 μ * Real.sqrt (8 / 3) := by
+              gcongr
+        _ = (1 / Real.sqrt (Real.log 2) + Real.sqrt (8 / 3)) *
+              Chapter1.lpNormRV X 2 μ := by ring
+
 /-- Every Gaussian process is subgaussian for its canonical `L2` pseudometric; any process is trivially so for its `psi2` increment metric. Canonical finite-dimensional Gaussian process. The process has subgaussian increments for its canonical `L²` pseudometric,
 with the explicit universal constant `sqrt (8/3)`.
 
@@ -227,6 +362,34 @@ theorem Chapter7.canonicalGaussianProcess_hasSubGaussianIncrementsWith
   · rw [hfun, hv.2,
       Chapter7.canonicalGaussianProcess_increment a t s]
     simp [v, mul_comm]
+
+/-- Every Gaussian process, on an arbitrary index set and without a centering
+assumption, has sub-Gaussian increments for its canonical `L²` pseudometric.
+The displayed constant is universal.
+
+**Book Example 8.1.2.** -/
+theorem gaussianProcess_hasSubGaussianIncrementsWith
+    (X : RandomProcess T Ω) (hX : IsGaussianProcess X μ) :
+    HasSubGaussianIncrementsWith X μ (processIncrement X μ)
+      (1 / Real.sqrt (Real.log 2) + Real.sqrt (8 / 3)) := by
+  let K : ℝ := 1 / Real.sqrt (Real.log 2) + Real.sqrt (8 / 3)
+  have hK : 0 ≤ K := by
+    unfold K
+    positivity
+  refine ⟨hK, fun s t ↦ ?_⟩
+  have hinc :=
+    gaussian_psi2Norm_le_lpNorm_two
+      (hX.hasGaussianLaw_fun_sub (s := t) (t := s))
+  simpa [K, processIncrement] using hinc
+
+/-- Existential-constant form of the arbitrary Gaussian-process increment
+bound.
+
+**Book Example 8.1.2.** -/
+theorem gaussianProcess_hasSubGaussianIncrements
+    (X : RandomProcess T Ω) (hX : IsGaussianProcess X μ) :
+    HasSubGaussianIncrements X μ (processIncrement X μ) :=
+  (gaussianProcess_hasSubGaussianIncrementsWith X hX).toHasSubGaussianIncrements
 
 /-- Every Gaussian process is subgaussian for its canonical `L2` pseudometric; any process is trivially so for its `psi2` increment metric. Existential-constant form of Example 8.1.2.
 
