@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **603 verified results** |
+| Book → Lean correspondence | **604 verified results** |
 | Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 69 / 88 / 67 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,436 theorems, 1,006 lemmas, and 794 ordinary definitions across the shared foundations and consolidated modules |
+| Core declarations | 2,438 theorems, 1,006 lemmas, and 795 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -411,6 +411,7 @@ This table records **591 verified results** from the second-edition PDF. Each ro
 | Example 5.1.2 | Linear functionals, matrices, and the norm map have their advertised sharp Lipschitz constants. | `HDP.Chapter5.example_5_1_2a`; `HDP.Chapter5.example_5_1_2b`; `HDP.Chapter5.example_5_1_2c` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Theorem 5.1.3 | Every Lipschitz function on the radius-`sqrt n` sphere has dimension-free subgaussian concentration about its mean. | `HDP.Chapter5.sphere_lipschitz_concentration` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Lemma 5.1.6 | Any set occupying at least half the sphere has exponentially large metric blow-ups. | `HDP.Chapter5.blowUp_of_centered_concentration` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
+| Eq. (5.3) | The `t`-neighborhood of a hemisphere contains the spherical coordinate band `x₀ ≤ t / sqrt 2`. | `HDP.Chapter5.sphericalCapBand_subset_neighborhood` | [`Prelude/SphericalCapGeometry.lean`](Prelude/SphericalCapGeometry.lean) |
 | Remark 5.1.7 | Even exponentially small sets blow up to large measure after a modest enlargement. | `HDP.Chapter5.exercise_5_3a_exponentially_small_blowUp` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Remark 5.2.1; pp. 145–146 | Every real random variable has a median; mean, median, and `L^p` centers are interchangeable up to subgaussian-scale constants. | `HDP.Chapter5.exists_isMedian`; `IsMedian` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
 | Theorem 5.2.3 | Lipschitz functions of a standard Gaussian vector concentrate subgaussianly. | `HDP.Chapter5.gaussian_lipschitz_hasSubgaussianMGF` | [`Chapter5_ConcentrationWithoutIndependence.lean`](Chapter5_ConcentrationWithoutIndependence.lean) |
