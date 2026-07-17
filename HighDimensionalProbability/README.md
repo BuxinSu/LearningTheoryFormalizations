@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **594 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 63 / 88 / 66 / 39 / 59 / 99 / 61 |
-| Core declarations | 2,411 theorems, 1,006 lemmas, and 785 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **595 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 59 / 64 / 88 / 66 / 39 / 59 / 99 / 61 |
+| Core declarations | 2,413 theorems, 1,006 lemmas, and 785 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -99,7 +99,7 @@ When a result is already available in Mathlib, the development uses or specializ
 
 ## Book → Lean correspondence
 
-This table records **594 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
+This table records **595 verified results** from the second-edition PDF. Each row identifies the source statement, its mathematical content, the corresponding Lean declaration, and the module in which it is exposed.
 
 ### Appetizer — Using Probability to Cover a Set
 
@@ -298,6 +298,7 @@ This table records **594 verified results** from the second-edition PDF. Each ro
 | Lemma 3.7.4 | Inner products of tensor powers satisfy `<u^k,v^k>=<u,v>^k`. | `HDP.inner_tensorPowerFeature` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Example 3.7.5 | A polynomial with nonnegative coefficients has a Hilbert feature map. | `HDP.inner_analyticFeature_of_nonneg` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Example 3.7.6 | General signed coefficients admit two feature maps with the desired cross-inner-product. | `HDP.inner_analyticFeature_signedAnalyticFeature` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Lemma 3.7.7 | A real power series converging at every real input is absolutely convergent at every radius and admits the stated pair of Hilbert feature maps. | `HDP.Chapter3.realAnalytic_featureMap_of_entire` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Example 3.7.8 | Sine admits signed feature maps; choosing `c=log(1+sqrt(2))` normalizes via `sinh c=1`. | `HDP.sineFeature` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.37) | Transformed unit vectors have inner products `sin(c <u_i,v_j>)`. | `HDP.Chapter3.sine_feature_identity` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Gaussian/polynomial kernel prose | Polynomial and Gaussian kernels have explicit feature maps. | `HDP.Chapter3.polynomial_kernel_feature` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |

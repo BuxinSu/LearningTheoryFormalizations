@@ -10683,6 +10683,53 @@ variable {ι : Type*} [Fintype ι]
 def AbsolutePowerSummable (a : ℕ → ℝ) : Prop :=
   ∀ r : ℝ, Summable (fun k : ℕ ↦ |a k| * |r| ^ k)
 
+/-- A real power series that converges at every real input is absolutely
+convergent at every radius. This supplies the analytic bridge implicit in the
+source's hypothesis for Lemma 3.7.7.
+
+**Book Lemma 3.7.7.** -/
+theorem absolutePowerSummable_of_entire (a : ℕ → ℝ)
+    (h : ∀ x : ℝ, Summable (fun k : ℕ ↦ a k * x ^ k)) :
+    AbsolutePowerSummable a := by
+  intro r
+  by_cases hr : r = 0
+  · subst r
+    refine summable_of_hasFiniteSupport ((Set.finite_singleton 0).subset ?_)
+    intro k hk
+    simp only [Set.mem_singleton_iff]
+    by_contra hk0
+    apply hk
+    simp [hk0]
+  · have hR := h (2 * |r|)
+    have ht : Filter.Tendsto (fun k : ℕ ↦ a k * (2 * |r|) ^ k)
+        Filter.atTop (nhds 0) := hR.tendsto_atTop_zero
+    have hev : ∀ᶠ k : ℕ in Filter.atTop,
+        |a k * (2 * |r|) ^ k| ≤ 1 := by
+      have hlt : ∀ᶠ k : ℕ in Filter.atTop,
+          |a k * (2 * |r|) ^ k| < 1 := by
+        have he := ht.eventually
+          (Metric.ball_mem_nhds (0 : ℝ) (by norm_num : (0 : ℝ) < 1))
+        filter_upwards [he] with k hk
+        simpa [Metric.mem_ball, Real.dist_eq] using hk
+      exact hlt.mono fun _ hk ↦ hk.le
+    refine Summable.of_norm_bounded_eventually_nat
+      (f := fun k : ℕ ↦ |a k| * |r| ^ k)
+      (g := fun k : ℕ ↦ (1 / 2 : ℝ) ^ k)
+      (summable_geometric_of_norm_lt_one (by norm_num)) ?_
+    filter_upwards [hev] with k hk
+    rw [Real.norm_of_nonneg
+      (mul_nonneg (abs_nonneg _) (pow_nonneg (abs_nonneg _) _))]
+    rw [one_div, inv_pow, inv_eq_one_div]
+    apply (le_div_iff₀ (pow_pos (by norm_num : (0 : ℝ) < 2) k)).2
+    have hid :
+        |a k| * |r| ^ k * 2 ^ k =
+          |a k * (2 * |r|) ^ k| := by
+      rw [abs_mul, abs_pow,
+        abs_of_nonneg (mul_nonneg (by norm_num) (abs_nonneg r)), mul_pow]
+      ring
+    rw [hid]
+    exact hk
+
 /-- The Hilbert sum of every finite tensor power. -/
 abbrev AnalyticFeatureSpace (ι : Type*) [Fintype ι] :=
   lp (fun k : ℕ ↦ TensorPowerSpace ι k) 2
@@ -10853,6 +10900,22 @@ theorem realAnalytic_featureMap {ι : Type*} [Fintype ι]
     inner ℝ (HDP.analyticFeature a ha u) (HDP.signedAnalyticFeature a ha v) =
       ∑' k : ℕ, a k * (inner ℝ u v) ^ k :=
   HDP.inner_analyticFeature_signedAnalyticFeature a ha u v
+
+/-- The feature-map conclusion of Lemma 3.7.7 under the source's literal
+hypothesis that the real power series converges at every real input.
+
+**Book Lemma 3.7.7.** -/
+theorem realAnalytic_featureMap_of_entire {ι : Type*} [Fintype ι]
+    (a : ℕ → ℝ)
+    (h : ∀ x : ℝ, Summable (fun k : ℕ ↦ a k * x ^ k))
+    (u v : EuclideanSpace ℝ ι) :
+    let ha := HDP.absolutePowerSummable_of_entire a h
+    inner ℝ (HDP.analyticFeature a ha u)
+        (HDP.signedAnalyticFeature a ha v) =
+      ∑' k : ℕ, a k * (inner ℝ u v) ^ k := by
+  dsimp only
+  exact HDP.inner_analyticFeature_signedAnalyticFeature
+    a (HDP.absolutePowerSummable_of_entire a h) u v
 
 /-- The two feature maps in Lemma 3.7.7 have the source's exact squared norm
 on unit vectors.
