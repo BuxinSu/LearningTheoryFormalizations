@@ -2025,11 +2025,11 @@ theorem pca_kth_maximum_principle [FiniteDimensional ℝ E] {n : ℕ}
   · rintro y ⟨x, ⟨hx, horth⟩, rfl⟩
     exact pca_kth_component_le T hT hn k x hx horth
 
-/-- Random-vector form of Proposition 3.2.2. The objective is the actual
+/-- Uncentered random-vector form of Proposition 3.2.2. The objective is the actual
 second moment of the scalar projection and the spectral data are those of the
 shared second-moment operator.
 
-**Book Corollary 3.2.3.** -/
+**Lean implementation helper for Book Proposition 3.2.2.** -/
 theorem secondMoment_pca_kth_maximum
     {Ω : Type*} {mΩ : MeasurableSpace Ω} {μ : Measure Ω} {n : ℕ}
     (X : Ω → EuclideanSpace ℝ (Fin n))
@@ -2050,6 +2050,79 @@ theorem secondMoment_pca_kth_maximum
     (HDP.secondMomentOperator_isSelfAdjoint (μ := μ) X)
     (finrank_euclideanSpace_fin (𝕜 := ℝ)) k
   simpa only [secondMomentOperator_reApplyInnerSelf X _ hX] using hmax
+
+/-- The quadratic form of the covariance operator is exactly the variance of
+the corresponding scalar projection.
+
+**Book Equation (3.8).** -/
+theorem covarianceOperator_reApplyInnerSelf
+    {Ω : Type*} {mΩ : MeasurableSpace Ω} {μ : Measure Ω}
+    [IsProbabilityMeasure μ] {n : ℕ}
+    (X : Ω → EuclideanSpace ℝ (Fin n)) (hX : MemLp X 2 μ)
+    (v : EuclideanSpace ℝ (Fin n)) :
+    (HDP.covarianceOperator X μ).reApplyInnerSelf v =
+      Var[fun ω => inner ℝ (X ω) v; μ] := by
+  have hi (i : Fin n) : MemLp (fun ω => X ω i) 2 μ := by
+    simpa only [Function.comp_apply, EuclideanSpace.coe_proj] using
+      hX.continuousLinearMap_comp (EuclideanSpace.proj (𝕜 := ℝ) i)
+  have hvi (i : Fin n) : MemLp (fun ω => v i * X ω i) 2 μ :=
+    (hi i).const_mul (v i)
+  rw [← covariance_self]
+  rw [ContinuousLinearMap.reApplyInnerSelf_apply]
+  simp only [HDP.covarianceOperator_apply, PiLp.inner_apply,
+    Real.inner_apply, Matrix.mulVec, dotProduct, RCLike.re_to_real]
+  have hinner : (fun ω => ∑ i, X ω i * v i) =
+      (fun ω => ∑ i, v i * X ω i) := by
+    funext ω
+    apply Finset.sum_congr rfl
+    intro i _
+    ring
+  rw [hinner]
+  have hsumfun : (∑ i, (fun ω => v i * X ω i)) =
+      (fun ω => ∑ i, v i * X ω i) := by
+    funext ω
+    simp
+  rw [← hsumfun]
+  have hcov := covariance_sum_sum
+    (X := fun i ω => v i * X ω i)
+    (Y := fun j ω => v j * X ω j) hvi hvi
+  rw [hcov]
+  apply Finset.sum_congr rfl
+  intro i _
+  rw [Finset.sum_mul]
+  apply Finset.sum_congr rfl
+  intro j _
+  rw [covariance_const_mul_left, covariance_const_mul_right]
+  change v i * (HDP.covarianceMatrix X μ i j * v j) =
+    v j * (v i * HDP.covarianceMatrix X μ i j)
+  ring
+
+/-- Principal component analysis for an arbitrary square-integrable random
+vector: the `k`th covariance eigenvalue is the maximum variance of a unit
+projection orthogonal to the preceding covariance eigenvectors, and the
+maximum is attained by the `k`th eigenvector.
+
+**Book Corollary 3.2.3.** -/
+theorem covariance_pca_kth_maximum
+    {Ω : Type*} {mΩ : MeasurableSpace Ω} {μ : Measure Ω}
+    [IsProbabilityMeasure μ] {n : ℕ}
+    (X : Ω → EuclideanSpace ℝ (Fin n)) (hX : MemLp X 2 μ)
+    (k : Fin n) :
+    let hT := HDP.covarianceOperator_isSelfAdjoint (μ := μ) X
+    IsGreatest
+      ((fun v => Var[fun ω => inner ℝ (X ω) v; μ]) ''
+        {v : EuclideanSpace ℝ (Fin n) | ‖v‖ = 1 ∧
+          ∀ i : Fin n, i < k →
+            inner ℝ (hT.isSymmetric.eigenvectorBasis
+              (finrank_euclideanSpace_fin (𝕜 := ℝ)) i) v = 0})
+      (hT.isSymmetric.eigenvalues
+        (finrank_euclideanSpace_fin (𝕜 := ℝ)) k) := by
+  dsimp only
+  have hmax := pca_kth_maximum_principle
+    (HDP.covarianceOperator X μ)
+    (HDP.covarianceOperator_isSelfAdjoint (μ := μ) X)
+    (finrank_euclideanSpace_fin (𝕜 := ℝ)) k
+  simpa only [covarianceOperator_reApplyInnerSelf X hX] using hmax
 
 end HDP.Chapter3
 

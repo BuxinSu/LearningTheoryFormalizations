@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **587 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 58 / 88 / 66 / 39 / 58 / 99 / 61 |
-| Core declarations | 2,400 theorems, 1,006 lemmas, and 780 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **588 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 59 / 88 / 66 / 39 / 58 / 99 / 61 |
+| Core declarations | 2,402 theorems, 1,006 lemmas, and 780 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -249,6 +249,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Proposition 3.2.1(c) | For independent copies `X,Y`, `E<X,Y>^2` is the squared Frobenius norm of the second-moment matrix. | `HDP.Chapter3.secondMoment_independent_copy_inner_sq` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.7) | Spectral decomposition of a symmetric matrix into orthonormal eigenvectors. | `LinearMap.IsSymmetric.eigenvectorBasis` | `.lake/packages/mathlib/Mathlib/Analysis/InnerProductSpace/Spectrum.lean` |
 | Proposition 3.2.2; (3.8) | The `k`th eigenvalue is the maximum Rayleigh quotient on the orthogonal complement of earlier eigenvectors. | `HDP.Chapter3.pca_kth_component_le` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
+| Corollary 3.2.3 | The `k`th covariance eigenvalue is the maximum variance of a unit projection orthogonal to preceding principal components, attained by the `k`th eigenvector. | `HDP.Chapter3.covariance_pca_kth_maximum` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | Definition 3.2.5; (3.9) | Isotropy means `E[XX^T]=I`, equivalently `E<X,v>^2=‖v‖^2`. | `HDP.IsIsotropic` | [`Prelude/RandomVector.lean`](Prelude/RandomVector.lean) |
 | (3.10) | Standard-score/whitening transform and affine reconstruction. | `HDP.Chapter3.exercise_3_10a` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
 | (3.11) | Standard multivariate Gaussian density is proportional to `exp(-‖z‖^2/2)`. | `HDP.Chapter3.exercise_3_15_standardDensity` | [`Chapter3_RandomVectorsInHighDimensions.lean`](Chapter3_RandomVectorsInHighDimensions.lean) |
