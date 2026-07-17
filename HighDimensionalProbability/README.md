@@ -11,9 +11,9 @@ The development covers the main mathematical arc of the book: concentration of i
 | Source | Roman Vershynin, *High-Dimensional Probability*, second-edition PDF |
 | Lean / Mathlib version | `leanprover/lean4:v4.31.0`; Mathlib revision `fabf563a7c95a166b8d7b6efca11c8b4dc9d911f` |
 | Main development | shared `Prelude`, Appetizer, and 9 chapter modules |
-| Book → Lean correspondence | **585 verified results** |
-| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 58 / 86 / 66 / 39 / 58 / 99 / 61 |
-| Core declarations | 2,395 theorems, 1,005 lemmas, and 777 ordinary definitions across the shared foundations and consolidated modules |
+| Book → Lean correspondence | **586 verified results** |
+| Chapter distribution | Appetizer: 9; Chapters 1–9: 50 / 58 / 58 / 87 / 66 / 39 / 58 / 99 / 61 |
+| Core declarations | 2,397 theorems, 1,005 lemmas, and 778 ordinary definitions across the shared foundations and consolidated modules |
 
 ```bibtex
 @misc{vershynin2026high,
@@ -307,6 +307,7 @@ This table records **566 verified results** from the second-edition PDF. Each ro
 | Theorem 4.1.6 | Courant--Fischer max--min and min--max formulas for ordered eigenvalues. | `HDP.Chapter4.courantFischer` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Corollary 4.1.7 | Courant--Fischer formulas for singular values. | `HDP.Chapter4.singularValueMinMax` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Definition 4.1.8 | The Euclidean operator norm is the least uniform stretch factor, equivalently a unit-sphere/nonzero-vector maximum. | `HDP.Chapter4.definition_4_1_8` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
+| Remark 4.1.9 | Every finite-dimensional `p→q` induced norm is attained and equals the maximum of the associated primal/dual bilinear form. | `HDP.Chapter4.matrixLpToLpNorm_attained`, `HDP.Chapter4.matrixLpToLpNorm_bilinear_isGreatest` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Lemma 4.1.10 | Frobenius and operator norms are invariant under orthogonal left/right multiplication. | `HDP.Chapter4.lemma_4_1_10` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Lemma 4.1.11 | Frobenius/operator norms equal the `l2`/maximum aggregates of singular values, with rank comparison. | `HDP.Chapter4.lemma_4_1_11` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
 | Remark 4.1.12 | For symmetric matrices, the operator norm is the maximum absolute eigenvalue/Rayleigh quotient. | `HDP.Chapter4.remark_4_1_12` | [`Chapter4_RandomMatrices.lean`](Chapter4_RandomMatrices.lean) |
