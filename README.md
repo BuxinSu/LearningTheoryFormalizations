@@ -66,6 +66,10 @@ lake env lean MatrixConcentration/Chapter4_MatrixGaussianAndRademacherSeries.lea
 lake env lean HighDimensionalProbability/Chapter4_RandomMatrices.lean
 ```
 
+## Framework Overview
+![Method overview](autoformal/framework.png)
+
+
 ## MatrixConcentration
 
 The Tropp development formalizes:
@@ -103,6 +107,22 @@ Its published correspondence table records 611 verified source results. See the 
 - Vershynin-related declarations use the `HDP` namespace, including `HDP.Chapter1` through `HDP.Chapter9`.
 
 The HighDimensionalProbability library reuses the completed Gaussian-concentration infrastructure from MatrixConcentration, so both libraries are built together in this repository.
+
+## Taxonomy
+
+| # | Check | Question Answered | Typical Issues Detected |
+|---|---|---|---|
+| V1 | **Build integrity** | Can the entire verification surface compile from a clean state, after deleting `.lake/build`, with zero errors? | Compilation failures; any `sorry` warning outside designated exercise files, treated as a **CRITICAL regression**. |
+| V2 | **Import-graph completeness** | Is every physical `.lean` file actually included in the build and checked? | Orphan modules: files that are never imported can hide declarations such as `axiom bad : False` while still being distributed with the repository. |
+| V3 | **Sorry/placeholder census** | Is the exact set of unproved statements known, tracked, and restricted to approved locations? | Text-level scans for `sorry`, `admit`, `#exit`, and `TODO`, cross-checked bidirectionally against kernel-level `sorryAx` dependencies at declaration granularity. For example, verify that there are exactly 228 exercise obligations and no unexpected proof debt elsewhere. |
+| V4 | **Axiom audit (core)** | Does every declaration depend only on the standard axioms `propext`, `Classical.choice`, and `Quot.sound`, with all proofs checked by the kernel? | Custom `axiom` declarations; `ofReduceBool` introduced by `native_decide`; `trustCompiler`; hidden dependencies in private declarations or compiler-generated auxiliary declarations. |
+| V5 | **Escape-hatch scan** | Does the source contain any construct that bypasses or weakens kernel checking? | `axiom`, `unsafe`, `@[implemented_by]`, `skipKernelTC`, `run_cmd`, and other environment mutations that may leave no axiom trace; global instances that alter Mathlib behavior; macros that conceal `sorry`-like tokens; and issues hidden in files that are never imported. |
+| V6 | **Vacuity and triviality** | Can a theorem compile without `sorry` while still being vacuous, such as having inconsistent assumptions or a trivially true conclusion? | A three-tier audit: Tier A automatically scans for contradictory assumptions, `IsEmpty`, misspelled `autoImplicit` variables, and similar warning signs; Tier B performs line-by-line review of theorem mappings; Tier C compiles named witnesses showing that important assumptions are satisfiable. |
+| V7 | **Definition sanity** | Are the definitions used by the theorems meaningful rather than constant, degenerate, or dead? | A norm that is always zero; collapse in `ℝ≥0∞`; inappropriate use of `sInf` over an empty set. Load-bearing definitions should have library lemmas or compiled witnesses demonstrating non-degenerate behavior. |
+| V8 | **Linter and code quality** | Is package-wide linting performed correctly? This checks code quality rather than logical soundness. | Enforcing package scope prevents `#lint` from scanning only the test harness and producing a false all-clear result. |
+| V9 | **Published-claims cross-check** | Is every machine-checkable claim in the README about the library itself accurate? | Independently reproducing counts such as 611, 838, and 5,630, as well as build commands and module tables, rather than inheriting previously reported values. |
+| V10 | **Conditional-interface census** | Are there results that disguise an unproved assumption as a theorem by depending on a `Prop` that is never discharged anywhere in the library? | A theorem such as `positive_ricci_concentration` may be `sorry`-free and axiom-clean while still requiring an unconstructed principle parameter. Classify each `Prop`-valued interface as `PROVED`, `CONSUMED-ONLY`, or `DEAD`, then assess severity according to whether its consumers are publicly exposed. |
+
 
 ## Sources
 
