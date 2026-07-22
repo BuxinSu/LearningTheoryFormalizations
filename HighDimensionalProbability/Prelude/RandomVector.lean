@@ -103,6 +103,18 @@ theorem isIsotropic_iff {n : ℕ} {X : Ω → EuclideanSpace ℝ (Fin n)} :
     ext i j
     simpa [secondMomentMatrix, Matrix.one_apply] using h i j
 
+/-- Source-facing isotropy packages the probability-space, measurability, and
+finite-second-moment conditions implicit in ordinary expectation notation,
+together with the raw isotropy equation.
+
+**Book Definition 3.2.5.** -/
+structure IsIsotropicRandomVector {n : ℕ}
+    (X : Ω → EuclideanSpace ℝ (Fin n)) (μ : Measure Ω) : Prop where
+  isProbabilityMeasure : IsProbabilityMeasure μ
+  aemeasurable : AEMeasurable X μ
+  memLp_two : MemLp X 2 μ
+  isIsotropic : IsIsotropic X μ
+
 /-- For an isotropic random vector, each coordinate has second moment one.
 
 **Lean implementation helper.** -/

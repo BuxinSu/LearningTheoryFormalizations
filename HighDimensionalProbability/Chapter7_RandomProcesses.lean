@@ -9946,14 +9946,48 @@ private lemma expectedFiniteSupremum_nonneg_of_centered
   rw [show (0 : ℝ) = ∫ ω, Z i0 ω ∂ν by rw [hZ0 i0]]
   exact integral_mono (hZi i0) hM hpoint
 
-/-- For arbitrary index sets, expected suprema are interpreted as suprema of finite-subset expected maxima. Remark 7.2.1's expected-supremum convention, with values in `EReal`.
-The `n+1` indexing makes every approximating family nonempty.
+/-- The extended expectation of a real-valued function, formed from its
+positive and negative parts.
+
+This definition retains an infinite positive expectation instead of using the
+Bochner integral's totalized value `0`.  In the indeterminate `∞ - ∞` case,
+`EReal` evaluates the expression to `⊥`; all Gaussian finite stages used below
+are integrable, so that case does not arise there.
+
+**Lean implementation helper.** -/
+def extendedExpectation {Ω : Type*} [MeasurableSpace Ω]
+    (μ : Measure Ω) (f : Ω → ℝ) : EReal :=
+  (∫⁻ ω, ENNReal.ofReal (f ω) ∂μ : EReal) -
+    (∫⁻ ω, ENNReal.ofReal (-f ω) ∂μ : EReal)
+
+/-- For an integrable real function, the extended expectation agrees with the
+ordinary Bochner integral.
+
+**Lean implementation helper.** -/
+theorem extendedExpectation_eq_integral
+    {Ω : Type*} [MeasurableSpace Ω] {μ : Measure Ω} {f : Ω → ℝ}
+    (hf : Integrable f μ) :
+    extendedExpectation μ f = (∫ ω, f ω ∂μ : ℝ) := by
+  have hpos : (∫⁻ ω, ENNReal.ofReal (f ω) ∂μ) ≠ ⊤ :=
+    ne_of_lt hf.lintegral_lt_top
+  have hneg : (∫⁻ ω, ENNReal.ofReal (-f ω) ∂μ) ≠ ⊤ := by
+    exact ne_of_lt
+      ((show Integrable (fun ω => -f ω) μ from hf.neg).lintegral_lt_top)
+  rw [MeasureTheory.integral_eq_lintegral_pos_part_sub_lintegral_neg_part hf]
+  rw [EReal.coe_sub]
+  unfold extendedExpectation
+  rw [EReal.coe_ennreal_toReal hpos, EReal.coe_ennreal_toReal hneg]
+
+/-- For arbitrary index sets, expected suprema are interpreted as suprema of
+extended expectations of finite-subset maxima.  The `n+1` indexing makes every
+approximating family nonempty.
 
 **Book Remark 7.2.1.** -/
 def extendedExpectedSupremum {T Ω : Type*} [MeasurableSpace Ω]
     (μ : Measure Ω) (X : T → Ω → ℝ) : EReal :=
   ⨆ n : ℕ, ⨆ t : Fin (n + 1) → T,
-    (expectedFiniteSupremum μ (fun i ↦ X (t i)) : EReal)
+    extendedExpectation μ
+      (HDP.Chapter5.finiteMaximum (fun i ↦ X (t i)))
 
 /-- A finite centered Gaussian family with uniformly separated increments has expected supremum bounded below by the separation scale times the square root of the logarithmic cardinality.
 
@@ -10599,10 +10633,18 @@ private lemma extendedExpectedSupremum_ge_sudakovSeq
       _ ≤ (1 / 100 : ℝ) * δ * Real.sqrt (Real.log (M : ℝ)) := by
         gcongr
       _ ≤ expectedFiniteSupremum μ X' := by simpa [M] using hsud
+  have hX'i : ∀ i, Integrable (X' i) μ := by
+    intro i
+    exact ((hX'.hasGaussianLaw_eval i).memLp_two.integrable (by norm_num))
+  have hmax : Integrable (HDP.Chapter5.finiteMaximum X') μ :=
+    integrable_finiteMaximum_aux X' hX'i
   calc
     (((1 / 200 : ℝ) * ε *
         Real.sqrt (Real.log ((k : ℝ) + 2)) : ℝ) : EReal) ≤
         (expectedFiniteSupremum μ X' : EReal) := by exact_mod_cast hlower
+    _ = extendedExpectation μ
+        (HDP.Chapter5.finiteMaximum X') := by
+      exact (extendedExpectation_eq_integral hmax).symm
     _ ≤ extendedExpectedSupremum μ X := by
       unfold extendedExpectedSupremum
       exact le_iSup_of_le (k + 1) (le_iSup_of_le a (by exact le_rfl))
