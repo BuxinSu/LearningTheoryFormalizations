@@ -26,6 +26,9 @@ Both project READMEs include chapter-by-chapter Book → Lean correspondence tab
 │   ├── …
 │   ├── Chapter8_ProofOfLiebsTheorem.lean
 │   ├── Appendix_*.lean
+│   ├── Verification/
+│   │   ├── README.md
+│   │   └── scripts/
 │   └── README.md
 ├── HighDimensionalProbability/
 │   ├── Prelude/
@@ -33,6 +36,9 @@ Both project READMEs include chapter-by-chapter Book → Lean correspondence tab
 │   ├── Chapter1_AnalysisAndProbabilityRefresher.lean
 │   ├── …
 │   ├── Chapter9_DeviationsOfRandomMatricesOnSets.lean
+│   ├── Verification/
+│   │   ├── README.md
+│   │   └── scripts/
 │   └── README.md
 ├── MatrixConcentration.lean
 ├── HighDimensionalProbability.lean
@@ -41,6 +47,19 @@ Both project READMEs include chapter-by-chapter Book → Lean correspondence tab
 ```
 
 The publication contains the completed consolidated HighDimensionalProbability core modules. The `MatrixConcentration` appendix modules are included because they provide completed formal proofs of external ingredients cited by Tropp.
+
+## Verification records
+
+This repository publishes only the verification scripts and Markdown result
+reports for both libraries:
+
+- [HighDimensionalProbability verification](HighDimensionalProbability/Verification/README.md)
+- [MatrixConcentration verification](MatrixConcentration/Verification/README.md)
+
+Raw logs and other generated artifacts—including generated tables,
+inventories, curation inputs, caches, and transient run state—are intentionally
+omitted. Each verification index records the scope and status of the published
+audit results.
 
 ## Build
 

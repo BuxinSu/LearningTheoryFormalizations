@@ -14,6 +14,7 @@ The development covers the main mathematical arc of the book: concentration of i
 | Book → Lean correspondence | **611 verified results** |
 | Chapter distribution | Appetizer: 8; Chapters 1–9: 51 / 59 / 75 / 88 / 68 / 39 / 62 / 100 / 61 |
 | Core declarations | 2,807 theorems, 1,604 lemmas, and 1,133 ordinary definitions across the shared foundations and consolidated modules |
+| Verification | [V1–V10 reports and verification scripts](Verification/README.md); raw generated evidence is retained outside this curated GitHub copy |
 
 ```bibtex
 @misc{vershynin2026high,
