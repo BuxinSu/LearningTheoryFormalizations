@@ -14,6 +14,7 @@ This Lean 4 project translates the monograph’s mathematical development into k
 | Public `theorem` / `lemma` / `def` | 469 / 841 / 135 (**1,445 total**) |
 | Book → Lean correspondence | **469 kernel-checked declaration counterparts** |
 | Verified kernel status | Clean root build; no `sorry`, `admit`, `native_decide`, or custom axioms; `#print axioms` for every audited theorem/lemma endpoint returns exactly `propext`, `Classical.choice`, and `Quot.sound` |
+| Verification | [V1–V10 reports and verification scripts](Verification/README.md); raw generated evidence is retained outside this curated GitHub copy |
 
 ```bibtex
 @article{tropp2015introduction,
