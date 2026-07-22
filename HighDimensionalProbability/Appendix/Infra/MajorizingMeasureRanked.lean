@@ -1,0 +1,2959 @@
+import HighDimensionalProbability.Appendix.Infra.MajorizingMeasureGaussian
+import Mathlib.Order.Partition.Finpartition
+
+/-!
+# Ranked greedy partitions for the finite majorizing-measure lower bound
+
+This file contains the deterministic finite partitioning scheme used to turn
+the super-Sudakov growth estimate into a multiscale labelled partition.
+-/
+
+open MeasureTheory ProbabilityTheory Real Set
+open scoped BigOperators ENNReal NNReal RealInnerProductSpace
+
+namespace HDP.Chapter8.Appendix
+
+noncomputable section
+
+variable {I J : Type*} [Fintype I] [Nonempty I] [Fintype J]
+
+/-! ## One greedy partition -/
+
+/-- The part of `B` lying in the closed canonical-metric ball about `x`. -/
+def localBallFinset
+    (a : I → EuclideanSpace ℝ J) (B : Finset I)
+    (ρ : ℝ≥0) (x : I) : Finset I := by
+  classical
+  exact B.filter fun y => dist (a y) (a x) ≤ (ρ : ℝ)
+
+theorem localBallFinset_subset
+    (a : I → EuclideanSpace ℝ J) (B : Finset I)
+    (ρ : ℝ≥0) (x : I) :
+    localBallFinset a B ρ x ⊆ B := by
+  classical
+  intro y hy
+  exact (Finset.mem_filter.mp hy).1
+
+theorem mem_localBallFinset
+    (a : I → EuclideanSpace ℝ J) (B : Finset I)
+    (ρ : ℝ≥0) {x y : I} :
+    y ∈ localBallFinset a B ρ x ↔
+      y ∈ B ∧ dist (a y) (a x) ≤ (ρ : ℝ) := by
+  classical
+  simp [localBallFinset]
+
+theorem localBallFinset_nonempty
+    (a : I → EuclideanSpace ℝ J) (B : Finset I)
+    (ρ : ℝ≥0) {x : I} (hx : x ∈ B) :
+    (localBallFinset a B ρ x).Nonempty := by
+  refine ⟨x, ?_⟩
+  rw [mem_localBallFinset]
+  exact ⟨hx, by simp⟩
+
+/-- Local width used as the greedy score.  Outside `B` it is set to zero;
+only its values on `B` are used. -/
+def localBallScore
+    (a : I → EuclideanSpace ℝ J) (B : Finset I)
+    (ρ : ℝ≥0) (x : I) : ℝ := by
+  classical
+  exact if hx : x ∈ B then
+      localGaussianWidth a (localBallFinset a B ρ x)
+        (localBallFinset_nonempty a B ρ hx)
+    else 0
+
+theorem localBallScore_of_mem
+    (a : I → EuclideanSpace ℝ J) (B : Finset I)
+    (ρ : ℝ≥0) {x : I} (hx : x ∈ B) :
+    localBallScore a B ρ x =
+      localGaussianWidth a (localBallFinset a B ρ x)
+        (localBallFinset_nonempty a B ρ hx) := by
+  classical
+  rw [localBallScore, dif_pos hx]
+
+/-- A point of `B` maximizing the local-ball width, with an arbitrary default
+when `B` is empty. -/
+def greedyCenter
+    (a : I → EuclideanSpace ℝ J) (B : Finset I)
+    (ρ : ℝ≥0) : I :=
+  if hB : B.Nonempty then
+    (Finset.exists_mem_eq_sup' hB (localBallScore a B ρ)).choose
+  else Classical.choice inferInstance
+
+theorem greedyCenter_mem
+    (a : I → EuclideanSpace ℝ J) {B : Finset I}
+    (ρ : ℝ≥0) (hB : B.Nonempty) :
+    greedyCenter a B ρ ∈ B := by
+  rw [greedyCenter, dif_pos hB]
+  exact (Finset.exists_mem_eq_sup' hB
+    (localBallScore a B ρ)).choose_spec.1
+
+theorem localBallScore_le_greedyCenter
+    (a : I → EuclideanSpace ℝ J) {B : Finset I}
+    (ρ : ℝ≥0) (hB : B.Nonempty) {x : I} (hx : x ∈ B) :
+    localBallScore a B ρ x ≤
+      localBallScore a B ρ (greedyCenter a B ρ) := by
+  rw [greedyCenter, dif_pos hB]
+  let z := (Finset.exists_mem_eq_sup' hB
+    (localBallScore a B ρ)).choose
+  have hz := (Finset.exists_mem_eq_sup' hB
+    (localBallScore a B ρ)).choose_spec
+  change localBallScore a B ρ x ≤ localBallScore a B ρ z
+  calc
+    localBallScore a B ρ x ≤
+        B.sup' hB (localBallScore a B ρ) :=
+      Finset.le_sup' (localBallScore a B ρ) hx
+    _ = localBallScore a B ρ z := hz.2
+
+/-- The next large greedy cell cut from a residual set. -/
+def greedyCell
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) : Finset I :=
+  localBallFinset a B R (greedyCenter a B ρ)
+
+/-- The residual after removing one greedy cell. -/
+def greedyStep
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) : Finset I := by
+  classical
+  exact B \ greedyCell a R ρ B
+
+theorem greedyCell_subset
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) :
+    greedyCell a R ρ B ⊆ B :=
+  localBallFinset_subset a B R _
+
+theorem greedyStep_subset
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) :
+    greedyStep a R ρ B ⊆ B := by
+  classical
+  exact Finset.sdiff_subset
+
+theorem greedyCell_nonempty
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) {B : Finset I} (hB : B.Nonempty) :
+    (greedyCell a R ρ B).Nonempty := by
+  exact localBallFinset_nonempty a B R (greedyCenter_mem a ρ hB)
+
+theorem greedyStep_card_lt
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) {B : Finset I} (hB : B.Nonempty) :
+    (greedyStep a R ρ B).card < B.card := by
+  classical
+  have hcB : greedyCenter a B ρ ∈ B :=
+    greedyCenter_mem a ρ hB
+  have hcCell : greedyCenter a B ρ ∈ greedyCell a R ρ B := by
+    rw [greedyCell, mem_localBallFinset]
+    exact ⟨hcB, by simp⟩
+  have hcStep : greedyCenter a B ρ ∉ greedyStep a R ρ B := by
+    simp [greedyStep, hcCell]
+  apply Finset.card_lt_card
+  exact (greedyStep_subset a R ρ B).ssubset_of_mem_notMem
+    hcB hcStep
+
+/-- Residual sets generated by repeated greedy removal. -/
+def greedyResidual
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) : ℕ → Finset I
+  | 0 => B
+  | n + 1 => greedyStep a R ρ (greedyResidual a R ρ B n)
+
+@[simp] theorem greedyResidual_zero
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) :
+    greedyResidual a R ρ B 0 = B := rfl
+
+@[simp] theorem greedyResidual_succ
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ) :
+    greedyResidual a R ρ B (n + 1) =
+      greedyStep a R ρ (greedyResidual a R ρ B n) := rfl
+
+theorem greedyResidual_succ_subset
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ) :
+    greedyResidual a R ρ B (n + 1) ⊆
+      greedyResidual a R ρ B n := by
+  rw [greedyResidual_succ]
+  exact greedyStep_subset a R ρ _
+
+theorem greedyResidual_antitone
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) :
+    Antitone (greedyResidual a R ρ B) :=
+  antitone_nat_of_succ_le
+    (greedyResidual_succ_subset a R ρ B)
+
+/-- The `n`-th greedy cell. -/
+def greedyCellAt
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ) : Finset I :=
+  greedyCell a R ρ (greedyResidual a R ρ B n)
+
+/-- The small local set whose width is the score of the `n`-th center. -/
+def greedySmallCellAt
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ) : Finset I :=
+  localBallFinset a (greedyResidual a R ρ B n) ρ
+    (greedyCenter a (greedyResidual a R ρ B n) ρ)
+
+theorem greedyResidual_card_le
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ) :
+    (greedyResidual a R ρ B n).card ≤ B.card - n := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+      rw [greedyResidual_succ]
+      by_cases hres : (greedyResidual a R ρ B n).Nonempty
+      · have hlt := greedyStep_card_lt a R ρ hres
+        omega
+      · rw [Finset.not_nonempty_iff_eq_empty.mp hres]
+        classical
+        simp [greedyStep]
+
+theorem greedyResidual_card_eq_empty
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) :
+    greedyResidual a R ρ B B.card = ∅ := by
+  apply Finset.card_eq_zero.mp
+  have h := greedyResidual_card_le a R ρ B B.card
+  omega
+
+/-- Every point of the initial set is removed by a unique greedy cell before
+`B.card` steps. -/
+theorem exists_mem_greedyCellAt
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) {B : Finset I} {t : I} (ht : t ∈ B) :
+    ∃ n < B.card, t ∈ greedyCellAt a R ρ B n := by
+  classical
+  have hex : ∃ m : ℕ, t ∉ greedyResidual a R ρ B m := by
+    refine ⟨B.card, ?_⟩
+    rw [greedyResidual_card_eq_empty]
+    simp
+  have hm0 : Nat.find hex ≠ 0 := by
+    intro hm
+    have hmnot := Nat.find_spec hex
+    rw [hm, greedyResidual_zero] at hmnot
+    exact hmnot ht
+  obtain ⟨n, hn⟩ := Nat.exists_eq_succ_of_ne_zero hm0
+  have hnmem : t ∈ greedyResidual a R ρ B n := by
+    by_contra hnot
+    have hle : Nat.find hex ≤ n := Nat.find_min' hex hnot
+    rw [hn] at hle
+    omega
+  have hcell : t ∈ greedyCellAt a R ρ B n := by
+    have hnext := Nat.find_spec hex
+    rw [hn] at hnext
+    rw [greedyResidual_succ, greedyStep] at hnext
+    simpa [greedyCellAt, hnmem] using hnext
+  have hncard : n < B.card := by
+    have hpos : 0 < (greedyResidual a R ρ B n).card :=
+      Finset.card_pos.mpr ⟨t, hnmem⟩
+    have hle := greedyResidual_card_le a R ρ B n
+    omega
+  exact ⟨n, hncard, hcell⟩
+
+theorem greedyCellAt_subset_residual
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ) :
+    greedyCellAt a R ρ B n ⊆ greedyResidual a R ρ B n :=
+  greedyCell_subset a R ρ _
+
+theorem greedyResidual_subset_initial
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ) :
+    greedyResidual a R ρ B n ⊆ B := by
+  exact greedyResidual_antitone a R ρ B (Nat.zero_le n)
+
+theorem greedyCellAt_subset_initial
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ) :
+    greedyCellAt a R ρ B n ⊆ B :=
+  (greedyCellAt_subset_residual a R ρ B n).trans
+    (greedyResidual_subset_initial a R ρ B n)
+
+theorem greedyCellAt_disjoint_of_lt
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I)
+    {i j : ℕ} (hij : i < j) :
+    Disjoint (greedyCellAt a R ρ B i)
+      (greedyCellAt a R ρ B j) := by
+  classical
+  have hjres :
+      greedyCellAt a R ρ B j ⊆
+        greedyResidual a R ρ B (i + 1) := by
+    exact (greedyCellAt_subset_residual a R ρ B j).trans
+      (greedyResidual_antitone a R ρ B
+        (Nat.succ_le_of_lt hij))
+  rw [greedyResidual_succ, greedyStep] at hjres
+  exact Finset.disjoint_sdiff.mono_right hjres
+
+theorem greedyCellAt_disjoint
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I)
+    {i j : ℕ} (hij : i ≠ j) :
+    Disjoint (greedyCellAt a R ρ B i)
+      (greedyCellAt a R ρ B j) := by
+  rcases lt_or_gt_of_ne hij with h | h
+  · exact greedyCellAt_disjoint_of_lt a R ρ B h
+  · exact (greedyCellAt_disjoint_of_lt a R ρ B h).symm
+
+theorem greedyCellAt_index_eq_of_mem
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I)
+    {i j : ℕ} {t : I}
+    (hi : t ∈ greedyCellAt a R ρ B i)
+    (hj : t ∈ greedyCellAt a R ρ B j) :
+    i = j := by
+  by_contra hij
+  exact (Finset.disjoint_left.mp
+    (greedyCellAt_disjoint a R ρ B hij) hi hj)
+
+open Classical in
+/-- The zero-based rank of the greedy cell containing `t`. -/
+irreducible_def greedyOwnerIndex
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (t : I) : ℕ :=
+  if h : ∃ n < B.card, t ∈ greedyCellAt a R ρ B n then
+    h.choose
+  else 0
+
+theorem greedyOwnerIndex_lt
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) {B : Finset I} {t : I} (ht : t ∈ B) :
+    greedyOwnerIndex a R ρ B t < B.card := by
+  classical
+  rw [greedyOwnerIndex_def, dif_pos
+    (exists_mem_greedyCellAt a R ρ ht)]
+  exact (exists_mem_greedyCellAt a R ρ ht).choose_spec.1
+
+theorem mem_greedyOwnerCell
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) {B : Finset I} {t : I} (ht : t ∈ B) :
+    t ∈ greedyCellAt a R ρ B (greedyOwnerIndex a R ρ B t) := by
+  classical
+  rw [greedyOwnerIndex_def, dif_pos
+    (exists_mem_greedyCellAt a R ρ ht)]
+  exact (exists_mem_greedyCellAt a R ρ ht).choose_spec.2
+
+/-- The one-based label of the greedy child containing `t`. -/
+def greedyLabel
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (t : I) : ℕ :=
+  greedyOwnerIndex a R ρ B t + 1
+
+theorem greedyLabel_pos
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (t : I) :
+    0 < greedyLabel a R ρ B t := by
+  simp [greedyLabel]
+
+/-! ## Geometry and width ordering of the greedy cells -/
+
+theorem greedyCenterAt_mem
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ)
+    (hres : (greedyResidual a R ρ B n).Nonempty) :
+    greedyCenter a (greedyResidual a R ρ B n) ρ ∈
+      greedyResidual a R ρ B n :=
+  greedyCenter_mem a ρ hres
+
+theorem greedyCenterAt_mem_cell
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ)
+    (hres : (greedyResidual a R ρ B n).Nonempty) :
+    greedyCenter a (greedyResidual a R ρ B n) ρ ∈
+      greedyCellAt a R ρ B n := by
+  rw [greedyCellAt, greedyCell, mem_localBallFinset]
+  exact ⟨greedyCenterAt_mem a R ρ B n hres, by simp⟩
+
+theorem greedySmallCellAt_nonempty
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ)
+    (hres : (greedyResidual a R ρ B n).Nonempty) :
+    (greedySmallCellAt a R ρ B n).Nonempty := by
+  exact localBallFinset_nonempty a _ ρ
+    (greedyCenterAt_mem a R ρ B n hres)
+
+theorem mem_greedyCellAt_dist
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ)
+    {x : I} (hx : x ∈ greedyCellAt a R ρ B n) :
+    dist (a x)
+      (a (greedyCenter a (greedyResidual a R ρ B n) ρ)) ≤
+        (R : ℝ) := by
+  exact (mem_localBallFinset a _ R).mp hx |>.2
+
+theorem mem_greedySmallCellAt_dist
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ)
+    {x : I} (hx : x ∈ greedySmallCellAt a R ρ B n) :
+    dist (a x)
+      (a (greedyCenter a (greedyResidual a R ρ B n) ρ)) ≤
+        (ρ : ℝ) := by
+  exact (mem_localBallFinset a _ ρ).mp hx |>.2
+
+theorem greedyCenters_separated
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I)
+    {i j : ℕ} (hij : i < j)
+    (hi : (greedyResidual a R ρ B i).Nonempty)
+    (hj : (greedyResidual a R ρ B j).Nonempty) :
+    (R : ℝ) <
+      dist
+        (a (greedyCenter a (greedyResidual a R ρ B i) ρ))
+        (a (greedyCenter a (greedyResidual a R ρ B j) ρ)) := by
+  classical
+  let ci := greedyCenter a (greedyResidual a R ρ B i) ρ
+  let cj := greedyCenter a (greedyResidual a R ρ B j) ρ
+  have hcj :
+      cj ∈ greedyResidual a R ρ B (i + 1) := by
+    exact greedyResidual_antitone a R ρ B
+      (Nat.succ_le_of_lt hij)
+      (greedyCenterAt_mem a R ρ B j hj)
+  rw [greedyResidual_succ, greedyStep] at hcj
+  have hcjnot :
+      cj ∉ greedyCellAt a R ρ B i := by
+    exact (Finset.mem_sdiff.mp hcj).2
+  have hcjres :
+      cj ∈ greedyResidual a R ρ B i :=
+    greedyResidual_succ_subset a R ρ B i
+      (greedyResidual_antitone a R ρ B
+        (Nat.succ_le_of_lt hij)
+        (greedyCenterAt_mem a R ρ B j hj))
+  rw [greedyCellAt, greedyCell, mem_localBallFinset] at hcjnot
+  push_neg at hcjnot
+  simpa [ci, cj, dist_comm] using hcjnot hcjres
+
+theorem greedySmallWidth_antitone
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I)
+    {i j : ℕ} (hij : i ≤ j)
+    (hj : (greedyResidual a R ρ B j).Nonempty) :
+    localGaussianWidth a (greedySmallCellAt a R ρ B j)
+        (greedySmallCellAt_nonempty a R ρ B j hj) ≤
+      localGaussianWidth a (greedySmallCellAt a R ρ B i)
+        (greedySmallCellAt_nonempty a R ρ B i
+          (hj.mono (greedyResidual_antitone a R ρ B hij))) := by
+  let Bi := greedyResidual a R ρ B i
+  let Bj := greedyResidual a R ρ B j
+  let ci := greedyCenter a Bi ρ
+  let cj := greedyCenter a Bj ρ
+  have hji : Bj ⊆ Bi :=
+    greedyResidual_antitone a R ρ B hij
+  have hi : Bi.Nonempty := hj.mono hji
+  have hcjBj : cj ∈ Bj := greedyCenter_mem a ρ hj
+  have hcjBi : cj ∈ Bi := hji hcjBj
+  have hsmall :
+      localBallFinset a Bj ρ cj ⊆ localBallFinset a Bi ρ cj := by
+    intro x hx
+    rw [mem_localBallFinset] at hx ⊢
+    exact ⟨hji hx.1, hx.2⟩
+  have hmono :
+      localGaussianWidth a (localBallFinset a Bj ρ cj)
+          (localBallFinset_nonempty a Bj ρ hcjBj) ≤
+        localGaussianWidth a (localBallFinset a Bi ρ cj)
+          (localBallFinset_nonempty a Bi ρ hcjBi) :=
+    localGaussianWidth_mono a _ _ hsmall
+  have hmax :=
+    localBallScore_le_greedyCenter a ρ
+      hi hcjBi
+  rw [localBallScore_of_mem a Bi ρ hcjBi,
+    localBallScore_of_mem a Bi ρ
+      (greedyCenter_mem a ρ
+        hi)] at hmax
+  exact hmono.trans hmax
+
+/-- The score of the chosen center dominates the width of every nonempty
+subset of its large cell that is contained in a small ball. -/
+theorem localGaussianWidth_le_greedySmallCellAt
+    (a : I → EuclideanSpace ℝ J)
+    (R ρ : ℝ≥0) (B : Finset I) (n : ℕ)
+    (hres : (greedyResidual a R ρ B n).Nonempty)
+    (D : Finset I) (hD : D.Nonempty)
+    (hDcell : D ⊆ greedyCellAt a R ρ B n)
+    {z : I} (hz : z ∈ D)
+    (hDradius : ∀ x ∈ D, dist (a x) (a z) ≤ (ρ : ℝ)) :
+    localGaussianWidth a D hD ≤
+      localGaussianWidth a (greedySmallCellAt a R ρ B n)
+        (greedySmallCellAt_nonempty a R ρ B n hres) := by
+  let Br := greedyResidual a R ρ B n
+  let c := greedyCenter a Br ρ
+  have hzBr : z ∈ Br :=
+    (greedyCellAt_subset_residual a R ρ B n) (hDcell hz)
+  have hDsmall : D ⊆ localBallFinset a Br ρ z := by
+    intro x hx
+    rw [mem_localBallFinset]
+    exact ⟨(greedyCellAt_subset_residual a R ρ B n)
+      (hDcell hx), hDradius x hx⟩
+  have hmono :
+      localGaussianWidth a D hD ≤
+        localGaussianWidth a (localBallFinset a Br ρ z)
+          (localBallFinset_nonempty a Br ρ hzBr) :=
+    localGaussianWidth_mono a _ _ hDsmall
+  have hmax :=
+    localBallScore_le_greedyCenter a ρ hres hzBr
+  rw [localBallScore_of_mem a Br ρ hzBr,
+    localBallScore_of_mem a Br ρ
+      (greedyCenter_mem a ρ hres)] at hmax
+  exact hmono.trans hmax
+
+/-! ## The recursive multiscale labelled partition -/
+
+/-- A deliberately small geometric scale ratio; its size absorbs the local
+Gaussian-concentration error in the super-Sudakov estimate. -/
+def majorizingRatio : ℝ≥0 := 1 / 100000
+
+/-- Radius at depth `n`. -/
+def majorizingRadius (D : ℝ≥0) (n : ℕ) : ℝ≥0 :=
+  D * majorizingRatio ^ n
+
+theorem majorizingRatio_pos : 0 < majorizingRatio := by
+  norm_num [majorizingRatio]
+
+theorem majorizingRatio_lt_one : majorizingRatio < 1 := by
+  norm_num [majorizingRatio]
+
+@[simp] theorem majorizingRadius_zero (D : ℝ≥0) :
+    majorizingRadius D 0 = D := by
+  simp [majorizingRadius]
+
+theorem majorizingRadius_succ (D : ℝ≥0) (n : ℕ) :
+    majorizingRadius D (n + 1) =
+      majorizingRadius D n * majorizingRatio := by
+  simp [majorizingRadius, pow_succ, mul_assoc]
+
+theorem two_mul_majorizingRadius_succ_le
+    (D : ℝ≥0) (n : ℕ) :
+    2 * majorizingRadius D (n + 1) ≤ majorizingRadius D n := by
+  rw [majorizingRadius_succ]
+  have hq : (2 : ℝ≥0) * majorizingRatio ≤ 1 := by
+    norm_num [majorizingRatio]
+    rw [div_le_one₀]
+    · norm_num
+    · norm_num
+  calc
+    2 * (majorizingRadius D n * majorizingRatio) =
+        majorizingRadius D n * (2 * majorizingRatio) := by ring
+    _ ≤ majorizingRadius D n * 1 := by gcongr
+    _ = majorizingRadius D n := by simp
+
+/-- The cell containing `t` at depth `n`.  The transition from depth `n` to
+`n+1` uses large radius `r_(n+1)` and score radius `r_(n+2)`. -/
+def rankedCell
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0) :
+    ℕ → I → Finset I
+  | 0, _ => Finset.univ
+  | n + 1, t =>
+      let B := rankedCell a D n t
+      let R := majorizingRadius D (n + 1)
+      let ρ := majorizingRadius D (n + 2)
+      greedyCellAt a R ρ B (greedyOwnerIndex a R ρ B t)
+
+/-- One-based label of the child selected at the transition after depth `n`. -/
+def rankedLabel
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) : ℕ :=
+  let B := rankedCell a D n t
+  let R := majorizingRadius D (n + 1)
+  let ρ := majorizingRadius D (n + 2)
+  greedyLabel a R ρ B t
+
+@[simp] theorem rankedCell_zero
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0) (t : I) :
+    rankedCell a D 0 t = Finset.univ := rfl
+
+theorem rankedCell_succ
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedCell a D (n + 1) t =
+      greedyCellAt a
+        (majorizingRadius D (n + 1))
+        (majorizingRadius D (n + 2))
+        (rankedCell a D n t)
+        (greedyOwnerIndex a
+          (majorizingRadius D (n + 1))
+          (majorizingRadius D (n + 2))
+          (rankedCell a D n t) t) := rfl
+
+theorem rankedLabel_eq
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedLabel a D n t =
+      greedyOwnerIndex a
+        (majorizingRadius D (n + 1))
+        (majorizingRadius D (n + 2))
+        (rankedCell a D n t) t + 1 := rfl
+
+theorem rankedLabel_pos
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    0 < rankedLabel a D n t := by
+  rw [rankedLabel_eq]
+  omega
+
+theorem mem_rankedCell
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0) :
+    ∀ n t, t ∈ rankedCell a D n t := by
+  intro n
+  induction n with
+  | zero =>
+      intro t
+      simp
+  | succ n ih =>
+      intro t
+      rw [rankedCell_succ]
+      exact mem_greedyOwnerCell a
+        (majorizingRadius D (n + 1))
+        (majorizingRadius D (n + 2))
+        (ih t)
+
+theorem rankedCell_succ_subset
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedCell a D (n + 1) t ⊆ rankedCell a D n t := by
+  rw [rankedCell_succ]
+  exact greedyCellAt_subset_initial a _ _ _ _
+
+theorem rankedCell_antitone
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0) (t : I) :
+    Antitone (fun n => rankedCell a D n t) :=
+  antitone_nat_of_succ_le fun n =>
+    rankedCell_succ_subset a D n t
+
+theorem rankedCell_eq_of_mem
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0) :
+    ∀ n {s t : I}, s ∈ rankedCell a D n t →
+      rankedCell a D n s = rankedCell a D n t := by
+  intro n
+  induction n with
+  | zero =>
+      intro s t hs
+      simp
+  | succ n ih =>
+      intro s t hs
+      have hsParent :
+          s ∈ rankedCell a D n t :=
+        rankedCell_succ_subset a D n t hs
+      have hparent :
+          rankedCell a D n s = rankedCell a D n t :=
+        ih hsParent
+      let R := majorizingRadius D (n + 1)
+      let ρ := majorizingRadius D (n + 2)
+      let B := rankedCell a D n t
+      let it := greedyOwnerIndex a R ρ B t
+      let is := greedyOwnerIndex a R ρ B s
+      have hs_it : s ∈ greedyCellAt a R ρ B it := by
+        simpa [R, ρ, B, it, rankedCell_succ] using hs
+      have hsB : s ∈ B := by simpa [B] using hsParent
+      have hs_is : s ∈ greedyCellAt a R ρ B is := by
+        exact mem_greedyOwnerCell a R ρ hsB
+      have his : is = it :=
+        greedyCellAt_index_eq_of_mem a R ρ B hs_is hs_it
+      rw [rankedCell_succ, rankedCell_succ, hparent]
+      simpa [R, ρ, B, is, it] using congrArg
+        (fun q => greedyCellAt a R ρ B q) his
+
+theorem rankedLabel_eq_of_mem_child
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) {s t : I}
+    (hs : s ∈ rankedCell a D (n + 1) t) :
+    rankedLabel a D n s = rankedLabel a D n t := by
+  have hsParent :
+      s ∈ rankedCell a D n t :=
+    rankedCell_succ_subset a D n t hs
+  have hparent :
+      rankedCell a D n s = rankedCell a D n t :=
+    rankedCell_eq_of_mem a D n hsParent
+  let R := majorizingRadius D (n + 1)
+  let ρ := majorizingRadius D (n + 2)
+  let B := rankedCell a D n t
+  let it := greedyOwnerIndex a R ρ B t
+  let is := greedyOwnerIndex a R ρ B s
+  have hs_it : s ∈ greedyCellAt a R ρ B it := by
+    simpa [R, ρ, B, it, rankedCell_succ] using hs
+  have hsB : s ∈ B := by simpa [B] using hsParent
+  have hs_is : s ∈ greedyCellAt a R ρ B is :=
+    mem_greedyOwnerCell a R ρ hsB
+  have his : is = it :=
+    greedyCellAt_index_eq_of_mem a R ρ B hs_is hs_it
+  rw [rankedLabel_eq, rankedLabel_eq, hparent]
+  simpa [R, ρ, B, is, it] using his
+
+theorem rankedCell_pair_dist_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) {x y : I}
+    (hx : x ∈ rankedCell a D (n + 1) t)
+    (hy : y ∈ rankedCell a D (n + 1) t) :
+    dist (a x) (a y) ≤
+      2 * (majorizingRadius D (n + 1) : ℝ) := by
+  let R := majorizingRadius D (n + 1)
+  let ρ := majorizingRadius D (n + 2)
+  let B := rankedCell a D n t
+  let c := greedyCenter a
+    (greedyResidual a R ρ B
+      (greedyOwnerIndex a R ρ B t)) ρ
+  have hxc : dist (a x) (a c) ≤ (R : ℝ) := by
+    simpa [R, ρ, B, c, rankedCell_succ] using
+      mem_greedyCellAt_dist a R ρ B
+        (greedyOwnerIndex a R ρ B t) hx
+  have hyc : dist (a y) (a c) ≤ (R : ℝ) := by
+    simpa [R, ρ, B, c, rankedCell_succ] using
+      mem_greedyCellAt_dist a R ρ B
+        (greedyOwnerIndex a R ρ B t) hy
+  calc
+    dist (a x) (a y) ≤ dist (a x) (a c) + dist (a c) (a y) :=
+      dist_triangle _ _ _
+    _ ≤ (R : ℝ) + (R : ℝ) := by
+      gcongr
+      simpa [dist_comm] using hyc
+    _ = 2 * (majorizingRadius D (n + 1) : ℝ) := by
+      simp [R]
+      ring
+
+/-- Expected canonical Gaussian maximum over the cell containing `t`. -/
+def rankedWidth
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) : ℝ :=
+  localGaussianWidth a (rankedCell a D n t)
+    ⟨t, mem_rankedCell a D n t⟩
+
+theorem rankedWidth_nonneg
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    0 ≤ rankedWidth a D n t :=
+  localGaussianWidth_nonneg a _ _
+
+theorem rankedWidth_mono
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {m n : ℕ} (hmn : m ≤ n) (t : I) :
+    rankedWidth a D n t ≤ rankedWidth a D m t := by
+  exact localGaussianWidth_mono a _ _
+    (rankedCell_antitone a D t hmn)
+
+/-! ## Numerical absorption for the three-step growth estimate -/
+
+theorem sqrt_log_nat_add_two_le
+    {m : ℕ} (hm : 2 ≤ m) :
+    Real.sqrt (Real.log ((m : ℝ) + 2)) ≤
+      2 * Real.sqrt (Real.log (m : ℝ)) := by
+  have hmreal : (2 : ℝ) ≤ (m : ℝ) := by exact_mod_cast hm
+  have hmpos : (0 : ℝ) < (m : ℝ) := by positivity
+  have hmlog : 0 ≤ Real.log (m : ℝ) :=
+    Real.log_nonneg (by linarith)
+  have hpoly : (m : ℝ) + 2 ≤ (m : ℝ) ^ 2 := by
+    have hprod :
+        0 ≤ ((m : ℝ) - 2) * ((m : ℝ) + 1) :=
+      mul_nonneg (by linarith) (by positivity)
+    nlinarith
+  have hlog :
+      Real.log ((m : ℝ) + 2) ≤
+        4 * Real.log (m : ℝ) := by
+    calc
+      Real.log ((m : ℝ) + 2) ≤
+          Real.log ((m : ℝ) ^ 2) :=
+        Real.log_le_log (by positivity) hpoly
+      _ = 2 * Real.log (m : ℝ) := by
+        rw [Real.log_pow]
+        norm_num
+      _ ≤ 4 * Real.log (m : ℝ) := by nlinarith
+  have haddlog : 0 ≤ Real.log ((m : ℝ) + 2) :=
+    Real.log_nonneg (by linarith)
+  have hsqa :
+      (Real.sqrt (Real.log ((m : ℝ) + 2))) ^ 2 =
+        Real.log ((m : ℝ) + 2) :=
+    Real.sq_sqrt haddlog
+  have hsqb :
+      (Real.sqrt (Real.log (m : ℝ))) ^ 2 =
+        Real.log (m : ℝ) :=
+    Real.sq_sqrt hmlog
+  have hsqrta := Real.sqrt_nonneg (Real.log ((m : ℝ) + 2))
+  have hsqrtb := Real.sqrt_nonneg (Real.log (m : ℝ))
+  nlinarith
+
+theorem majorizingConcentrationError_le
+    (R : ℝ≥0) {m : ℕ} (hm : 2 ≤ m) :
+    4 * Real.sqrt 5 *
+          Real.sqrt (Real.log ((m : ℝ) + 2)) *
+          ((R * majorizingRatio : ℝ≥0) : ℝ) ≤
+      (1 / 400 : ℝ) * R *
+        Real.sqrt (Real.log (m : ℝ)) := by
+  have hsqrt := sqrt_log_nat_add_two_le hm
+  have hsqrt5nonneg : 0 ≤ Real.sqrt 5 := Real.sqrt_nonneg _
+  have hsqrt5sq : (Real.sqrt 5) ^ 2 = 5 :=
+    Real.sq_sqrt (by norm_num)
+  have hsqrt5le : Real.sqrt 5 ≤ 3 := by nlinarith
+  have hR : 0 ≤ (R : ℝ) := R.property
+  have hlog : 0 ≤ Real.sqrt (Real.log (m : ℝ)) :=
+    Real.sqrt_nonneg _
+  have hq : ((majorizingRatio : ℝ≥0) : ℝ) =
+      (1 / 100000 : ℝ) := by
+    norm_num [majorizingRatio]
+  have hcoeff :
+      8 * Real.sqrt 5 * (1 / 100000 : ℝ) ≤
+        (1 / 400 : ℝ) := by
+    nlinarith
+  rw [NNReal.coe_mul, hq]
+  calc
+    4 * Real.sqrt 5 *
+          Real.sqrt (Real.log ((m : ℝ) + 2)) *
+          ((R : ℝ) * (1 / 100000 : ℝ)) ≤
+        4 * Real.sqrt 5 *
+          (2 * Real.sqrt (Real.log (m : ℝ))) *
+          ((R : ℝ) * (1 / 100000 : ℝ)) := by
+      gcongr
+    _ ≤ (1 / 400 : ℝ) * R *
+        Real.sqrt (Real.log (m : ℝ)) := by
+      calc
+        4 * Real.sqrt 5 *
+            (2 * Real.sqrt (Real.log (m : ℝ))) *
+            ((R : ℝ) * (1 / 100000 : ℝ)) =
+          (8 * Real.sqrt 5 * (1 / 100000 : ℝ)) *
+            ((R : ℝ) * Real.sqrt (Real.log (m : ℝ))) := by ring
+        _ ≤ (1 / 400 : ℝ) *
+            ((R : ℝ) * Real.sqrt (Real.log (m : ℝ))) :=
+          mul_le_mul_of_nonneg_right hcoeff (mul_nonneg hR hlog)
+        _ = (1 / 400 : ℝ) * R *
+            Real.sqrt (Real.log (m : ℝ)) := by ring
+
+/-! ## Three-step local growth -/
+
+set_option maxHeartbeats 800000 in
+/-- The greedy label paid at one scale is absorbed by the drop in local
+Gaussian width three levels later. -/
+theorem rankedWidth_threeStep_growth
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    (1 / 400 : ℝ) * majorizingRadius D (n + 1) *
+          Real.sqrt (Real.log (rankedLabel a D n t : ℝ)) +
+        rankedWidth a D (n + 3) t ≤
+      rankedWidth a D n t := by
+  classical
+  let R := majorizingRadius D (n + 1)
+  let ρ := majorizingRadius D (n + 2)
+  let B := rankedCell a D n t
+  set p : ℕ := greedyOwnerIndex a R ρ B t with hpdef
+  have htB : t ∈ B := by
+    simpa [B] using mem_rankedCell a D n t
+  have htp : t ∈ greedyCellAt a R ρ B p := by
+    simpa [p] using mem_greedyOwnerCell a R ρ htB
+  have hpRes : (greedyResidual a R ρ B p).Nonempty :=
+    ⟨t, greedyCellAt_subset_residual a R ρ B p htp⟩
+  by_cases hR0 : R = 0
+  · have hlabelnonneg :
+        0 ≤ Real.sqrt (Real.log (rankedLabel a D n t : ℝ)) :=
+      Real.sqrt_nonneg _
+    have hmono : rankedWidth a D (n + 3) t ≤
+        rankedWidth a D n t :=
+      rankedWidth_mono a D (by omega) t
+    simpa [R, hR0] using hmono
+  by_cases hp0 : p = 0
+  · have hlabel : rankedLabel a D n t = 1 := by
+      rw [rankedLabel_eq]
+      simpa [R, ρ, B, p, hpdef, hp0]
+    have hmono : rankedWidth a D (n + 3) t ≤
+        rankedWidth a D n t :=
+      rankedWidth_mono a D (by omega) t
+    simpa [hlabel] using hmono
+  obtain ⟨q, hq⟩ := Nat.exists_eq_succ_of_ne_zero hp0
+  have hpq : p = q + 1 := hq
+  let c : Fin (q + 2) → I := fun i =>
+    greedyCenter a (greedyResidual a R ρ B i.val) ρ
+  let H : Fin (q + 2) → Finset I := fun i =>
+    greedySmallCellAt a R ρ B i.val
+  have hres (i : Fin (q + 2)) :
+      (greedyResidual a R ρ B i.val).Nonempty := by
+    apply hpRes.mono
+    exact greedyResidual_antitone a R ρ B (by
+      rw [hpq]
+      omega)
+  have hH (i : Fin (q + 2)) : (H i).Nonempty := by
+    exact greedySmallCellAt_nonempty a R ρ B i.val (hres i)
+  have hcH (i : Fin (q + 2)) : c i ∈ H i := by
+    dsimp [c, H, greedySmallCellAt]
+    rw [mem_localBallFinset]
+    exact ⟨greedyCenterAt_mem a R ρ B i.val (hres i), by simp⟩
+  have hHB (i : Fin (q + 2)) : H i ⊆ B := by
+    exact (localBallFinset_subset a _ ρ _).trans
+      (greedyResidual_subset_initial a R ρ B i.val)
+  let r : Fin (q + 2) := Fin.last (q + 1)
+  have hrval : r.val = q + 1 := rfl
+  have hwidth : ∀ i,
+      localGaussianWidth a (H r) (hH r) ≤
+        localGaussianWidth a (H i) (hH i) := by
+    intro i
+    simpa only [H, r, hrval] using
+      (greedySmallWidth_antitone a R ρ B
+        (i := i.val) (j := q + 1) (by omega)
+        (by simpa [hpq] using hpRes))
+  have hsep : ∀ i j, i ≠ j →
+      (R : ℝ) < dist (a (c i)) (a (c j)) := by
+    intro i j hij
+    have hijval : i.val ≠ j.val := by
+      intro h
+      exact hij (Fin.ext h)
+    rcases lt_or_gt_of_ne hijval with hlt | hgt
+    · exact greedyCenters_separated a R ρ B hlt (hres i) (hres j)
+    · simpa [dist_comm] using
+        (greedyCenters_separated a R ρ B hgt (hres j) (hres i))
+  have hball : ∀ i x, x ∈ H i →
+      ‖a x - a (c i)‖ ≤ (ρ : ℝ) := by
+    intro i x hx
+    simpa only [H, c, dist_eq_norm] using
+      (mem_greedySmallCellAt_dist a R ρ B i.val hx)
+  have hRpos : 0 < R := bot_lt_iff_ne_bot.mpr hR0
+  have hsuper := separatedLocalGaussian_growth
+    a B ⟨t, htB⟩ c H hH hcH hHB r hwidth
+    R ρ hRpos hsep hball
+  let C := rankedCell a D (n + 3) t
+  have hC : C.Nonempty := by
+    exact ⟨t, by simpa [C] using mem_rankedCell a D (n + 3) t⟩
+  have hCchild :
+      C ⊆ greedyCellAt a R ρ B p := by
+    have hsub : rankedCell a D (n + 3) t ⊆
+        rankedCell a D (n + 1) t :=
+      rankedCell_antitone a D t (by omega)
+    simpa [C, rankedCell_succ, R, ρ, B, p, hpdef] using hsub
+  have hCradius : ∀ x ∈ C, dist (a x) (a t) ≤ (ρ : ℝ) := by
+    intro x hx
+    have hdiam := rankedCell_pair_dist_le a D (n + 2) t
+      hx (by simpa [C] using mem_rankedCell a D (n + 3) t)
+    have hscaleNN :=
+      two_mul_majorizingRadius_succ_le D (n + 2)
+    have hscale :
+        2 * (majorizingRadius D (n + 3) : ℝ) ≤
+          (majorizingRadius D (n + 2) : ℝ) := by
+      exact_mod_cast hscaleNN
+    exact hdiam.trans (by simpa [ρ] using hscale)
+  have hdesc :
+      rankedWidth a D (n + 3) t ≤
+        localGaussianWidth a (H r) (hH r) := by
+    have hdom := localGaussianWidth_le_greedySmallCellAt
+      a R ρ B p hpRes C hC hCchild
+      (z := t) (by simpa [C] using mem_rankedCell a D (n + 3) t)
+      hCradius
+    simpa only [rankedWidth, C, H, r, hrval, hpq] using hdom
+  have herr :
+      4 * Real.sqrt 5 *
+          Real.sqrt (Real.log (((q + 2 : ℕ) : ℝ) + 2)) * ρ ≤
+        (1 / 400 : ℝ) * R *
+          Real.sqrt (Real.log ((q + 2 : ℕ) : ℝ)) := by
+    have hbase := majorizingConcentrationError_le R
+      (m := q + 2) (by omega)
+    rw [show ρ = R * majorizingRatio by
+      simp [ρ, R, majorizingRadius_succ]] 
+    exact hbase
+  have hlabel : rankedLabel a D n t = q + 2 := by
+    rw [rankedLabel_eq]
+    simpa [R, ρ, B, p, hpdef, hpq]
+  have hparent :
+      localGaussianWidth a B ⟨t, htB⟩ =
+        rankedWidth a D n t := by
+    simp only [rankedWidth, B]
+  rw [hlabel]
+  calc
+    (1 / 400 : ℝ) * majorizingRadius D (n + 1) *
+          Real.sqrt (Real.log (((q + 2 : ℕ) : ℝ))) +
+        rankedWidth a D (n + 3) t
+        ≤ (1 / 400 : ℝ) * R *
+            Real.sqrt (Real.log (((q + 2 : ℕ) : ℝ))) +
+          localGaussianWidth a (H r) (hH r) := by
+            simpa [R] using add_le_add_left hdesc
+              ((1 / 400 : ℝ) * R *
+                Real.sqrt (Real.log (((q + 2 : ℕ) : ℝ))))
+    _ ≤ localGaussianWidth a B ⟨t, htB⟩ := by
+      norm_num [Nat.cast_add, Nat.cast_ofNat] at hsuper herr ⊢
+      ring_nf at hsuper herr ⊢
+      nlinarith
+    _ = rankedWidth a D n t := hparent
+
+/-! ## Telescoping the local growth -/
+
+/-- The scale-label term paid by the ranked construction at level `n`. -/
+def rankedGrowthTerm
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) : ℝ :=
+  (majorizingRadius D (n + 1) : ℝ) *
+    Real.sqrt (Real.log (rankedLabel a D n t : ℝ))
+
+theorem rankedGrowthTerm_nonneg
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    0 ≤ rankedGrowthTerm a D n t := by
+  exact mul_nonneg (majorizingRadius D (n + 1)).property
+    (Real.sqrt_nonneg _)
+
+private theorem sum_range_le_first_three_add_shift
+    (f : ℕ → ℝ) (hf : ∀ n, 0 ≤ f n) (N : ℕ) :
+    (∑ n ∈ Finset.range N, f n) ≤
+      f 0 + f 1 + f 2 +
+        ∑ n ∈ Finset.range N, f (n + 3) := by
+  have hsubset : Finset.range N ⊆ Finset.range (3 + N) :=
+    Finset.range_mono (by omega)
+  have hle :
+      (∑ n ∈ Finset.range N, f n) ≤
+        ∑ n ∈ Finset.range (3 + N), f n := by
+    exact Finset.sum_le_sum_of_subset_of_nonneg hsubset
+      (fun n hn hnot => hf n)
+  rw [Finset.sum_range_add] at hle
+  simpa [Finset.sum_range_succ, add_assoc, add_comm, add_left_comm]
+    using hle
+
+/-- The total ranked growth paid up to any finite depth is bounded by the
+initial Gaussian width.  The factor `1200` is `3 · 400`: the three residue
+classes in the three-step recurrence and its local numerical loss. -/
+theorem rankedGrowth_sum_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (N : ℕ) (t : I) :
+    (∑ n ∈ Finset.range N, rankedGrowthTerm a D n t) ≤
+      1200 * rankedWidth a D 0 t := by
+  have hrec :
+      (∑ n ∈ Finset.range N,
+        ((1 / 400 : ℝ) * rankedGrowthTerm a D n t +
+          rankedWidth a D (n + 3) t)) ≤
+        ∑ n ∈ Finset.range N, rankedWidth a D n t := by
+    apply Finset.sum_le_sum
+    intro n hn
+    simpa [rankedGrowthTerm, mul_assoc] using
+      rankedWidth_threeStep_growth a D n t
+  rw [Finset.sum_add_distrib, ← Finset.mul_sum] at hrec
+  have hshift :=
+    sum_range_le_first_three_add_shift
+      (fun n => rankedWidth a D n t)
+      (fun n => rankedWidth_nonneg a D n t) N
+  have hW1 : rankedWidth a D 1 t ≤ rankedWidth a D 0 t :=
+    rankedWidth_mono a D (by omega) t
+  have hW2 : rankedWidth a D 2 t ≤ rankedWidth a D 0 t :=
+    rankedWidth_mono a D (by omega) t
+  norm_num at hrec ⊢
+  ring_nf at hrec hshift ⊢
+  nlinarith
+
+/-! ## Representatives and multiplicative rank codes -/
+
+/-- A canonical representative of the ranked cell containing `t`. -/
+noncomputable def rankedRepresentative
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) : I := by
+  classical
+  let e := Fintype.equivFin I
+  let S := (rankedCell a D n t).image e
+  exact e.symm (S.min' ⟨e t, by
+    exact Finset.mem_image.mpr
+      ⟨t, mem_rankedCell a D n t, rfl⟩⟩)
+
+theorem rankedRepresentative_mem
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedRepresentative a D n t ∈ rankedCell a D n t := by
+  classical
+  let e := Fintype.equivFin I
+  let S := (rankedCell a D n t).image e
+  let hS : S.Nonempty := ⟨e t, by
+    exact Finset.mem_image.mpr
+      ⟨t, mem_rankedCell a D n t, rfl⟩⟩
+  have hm : S.min' hS ∈ S := S.min'_mem hS
+  obtain ⟨x, hx, hex⟩ := Finset.mem_image.mp hm
+  have heq : e.symm (S.min' hS) = x := by
+    apply e.injective
+    simpa using hex.symm
+  simpa [rankedRepresentative, e, S, hS, heq] using hx
+
+theorem rankedCell_representative
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedCell a D n (rankedRepresentative a D n t) =
+      rankedCell a D n t :=
+  rankedCell_eq_of_mem a D n
+    (rankedRepresentative_mem a D n t)
+
+/-- One representative for every distinct ranked cell at depth `n`. -/
+def rankedRepresentatives
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) : Finset I := by
+  classical
+  exact Finset.univ.image (rankedRepresentative a D n)
+
+theorem rankedRepresentative_mem_representatives
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedRepresentative a D n t ∈ rankedRepresentatives a D n := by
+  classical
+  exact Finset.mem_image.mpr ⟨t, Finset.mem_univ _, rfl⟩
+
+theorem rankedRepresentatives_nonempty
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) :
+    (rankedRepresentatives a D n).Nonempty := by
+  obtain ⟨t⟩ := ‹Nonempty I›
+  exact ⟨rankedRepresentative a D n t,
+    rankedRepresentative_mem_representatives a D n t⟩
+
+theorem rankedRepresentative_eq_of_cell_eq
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) {s t : I}
+    (hcell : rankedCell a D n s = rankedCell a D n t) :
+    rankedRepresentative a D n s =
+      rankedRepresentative a D n t := by
+  classical
+  simp only [rankedRepresentative, hcell]
+
+theorem rankedRepresentative_fixed_of_mem
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) {u : I}
+    (hu : u ∈ rankedRepresentatives a D n) :
+    rankedRepresentative a D n u = u := by
+  classical
+  obtain ⟨t, ht, rfl⟩ := Finset.mem_image.mp hu
+  exact rankedRepresentative_eq_of_cell_eq a D n
+    (rankedCell_representative a D n t)
+
+theorem rankedLabel_eq_of_mem
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {k n : ℕ} (hkn : k < n) {s t : I}
+    (hs : s ∈ rankedCell a D n t) :
+    rankedLabel a D k s = rankedLabel a D k t := by
+  have hs' :
+      s ∈ rankedCell a D (k + 1) t :=
+    rankedCell_antitone a D t (Nat.succ_le_iff.mpr hkn) hs
+  exact rankedLabel_eq_of_mem_child a D k hs'
+
+/-- Multiplicative code of a ranked node.  The factor `4` at every level
+makes the reciprocal masses geometrically summable over all depths. -/
+def rankedCode
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) : ℕ :=
+  4 ^ n *
+    ∏ k ∈ Finset.range n, (rankedLabel a D k t) ^ 2
+
+@[simp] theorem rankedCode_zero
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0) (t : I) :
+    rankedCode a D 0 t = 1 := by
+  simp [rankedCode]
+
+theorem rankedCode_pos
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    0 < rankedCode a D n t := by
+  unfold rankedCode
+  exact Nat.mul_pos (pow_pos (by omega) _)
+    (Finset.prod_pos fun k hk =>
+      pow_pos (rankedLabel_pos a D k t) _)
+
+theorem four_pow_le_rankedCode
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    4 ^ n ≤ rankedCode a D n t := by
+  unfold rankedCode
+  exact Nat.le_mul_of_pos_right _
+    (Finset.prod_pos fun k hk =>
+      pow_pos (rankedLabel_pos a D k t) _)
+
+theorem rankedCode_succ
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedCode a D (n + 1) t =
+      rankedCode a D n t * 4 * (rankedLabel a D n t) ^ 2 := by
+  simp only [rankedCode, Finset.prod_range_succ, pow_succ]
+  ring
+
+theorem rankedCode_eq_of_mem
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) {s t : I}
+    (hs : s ∈ rankedCell a D n t) :
+    rankedCode a D n s = rankedCode a D n t := by
+  unfold rankedCode
+  congr 1
+  apply Finset.prod_congr rfl
+  intro k hk
+  have hkn : k < n := Finset.mem_range.mp hk
+  rw [rankedLabel_eq_of_mem a D hkn hs]
+
+theorem rankedCell_succ_eq_of_parent_label_eq
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) {s t : I}
+    (hparent : rankedCell a D n s = rankedCell a D n t)
+    (hlabel : rankedLabel a D n s = rankedLabel a D n t) :
+    rankedCell a D (n + 1) s =
+      rankedCell a D (n + 1) t := by
+  have howner :
+      greedyOwnerIndex a
+          (majorizingRadius D (n + 1))
+          (majorizingRadius D (n + 2))
+          (rankedCell a D n t) s =
+        greedyOwnerIndex a
+          (majorizingRadius D (n + 1))
+          (majorizingRadius D (n + 2))
+          (rankedCell a D n t) t := by
+    change
+      greedyOwnerIndex a
+            (majorizingRadius D (n + 1))
+            (majorizingRadius D (n + 2))
+            (rankedCell a D n s) s + 1 =
+        greedyOwnerIndex a
+            (majorizingRadius D (n + 1))
+            (majorizingRadius D (n + 2))
+            (rankedCell a D n t) t + 1 at hlabel
+    rw [hparent] at hlabel
+    omega
+  rw [rankedCell_succ, rankedCell_succ, hparent, howner]
+
+theorem rankedLabel_le_cell_card
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedLabel a D n t ≤ (rankedCell a D n t).card := by
+  rw [rankedLabel_eq]
+  exact Nat.succ_le_iff.mpr
+    (greedyOwnerIndex_lt a
+      (majorizingRadius D (n + 1))
+      (majorizingRadius D (n + 2))
+      (mem_rankedCell a D n t))
+
+theorem rankedLabel_injective_on_siblings
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) {u v : I}
+    (hu : u ∈ rankedRepresentatives a D (n + 1))
+    (hv : v ∈ rankedRepresentatives a D (n + 1))
+    (hparent :
+      rankedRepresentative a D n u =
+        rankedRepresentative a D n v)
+    (hlabel : rankedLabel a D n u = rankedLabel a D n v) :
+    u = v := by
+  have hparentCell :
+      rankedCell a D n u = rankedCell a D n v := by
+    calc
+      rankedCell a D n u =
+          rankedCell a D n (rankedRepresentative a D n u) :=
+        (rankedCell_representative a D n u).symm
+      _ = rankedCell a D n (rankedRepresentative a D n v) := by
+        rw [hparent]
+      _ = rankedCell a D n v :=
+        rankedCell_representative a D n v
+  have hchild :=
+    rankedCell_succ_eq_of_parent_label_eq
+      a D n hparentCell hlabel
+  have hrep :=
+    rankedRepresentative_eq_of_cell_eq a D (n + 1) hchild
+  rw [rankedRepresentative_fixed_of_mem a D (n + 1) hu,
+    rankedRepresentative_fixed_of_mem a D (n + 1) hv] at hrep
+  exact hrep
+
+private theorem sum_one_div_nat_square_bound_aux
+    (N : ℕ) (hN : 1 ≤ N) :
+    (∑ k ∈ Finset.range N,
+        (1 : ℝ) / (((k + 1 : ℕ) : ℝ) ^ 2)) ≤
+      2 - 1 / (N : ℝ) := by
+  induction N, hN using Nat.le_induction with
+  | base =>
+      norm_num
+  | succ N hN ih =>
+      rw [Finset.sum_range_succ]
+      have hNR : (0 : ℝ) < N := by exact_mod_cast hN
+      have hN1R : (0 : ℝ) < N + 1 := by positivity
+      have hfrac :
+          (1 : ℝ) / ((N + 1 : ℝ) ^ 2) ≤
+            1 / (N : ℝ) - 1 / (N + 1 : ℝ) := by
+        field_simp [ne_of_gt hNR, ne_of_gt hN1R]
+        nlinarith
+      norm_num [Nat.cast_add, Nat.cast_one] at ih ⊢
+      simp only [one_div] at hfrac ih ⊢
+      linarith
+
+theorem sum_one_div_nat_square_le_two (N : ℕ) :
+    (∑ k ∈ Finset.range N,
+        (1 : ℝ) / (((k + 1 : ℕ) : ℝ) ^ 2)) ≤ 2 := by
+  by_cases hN : N = 0
+  · simp [hN]
+  have h := sum_one_div_nat_square_bound_aux N
+    (Nat.one_le_iff_ne_zero.mpr hN)
+  have hnonneg : 0 ≤ (1 : ℝ) / (N : ℝ) := by positivity
+  linarith
+
+theorem sum_inv_sq_le_two_of_injective
+    {S : Finset I} (label : I → ℕ)
+    (hinj : Set.InjOn label S)
+    (hpos : ∀ u ∈ S, 0 < label u)
+    (M : ℕ) (hbound : ∀ u ∈ S, label u ≤ M) :
+    (∑ u ∈ S, (1 : ℝ) / ((label u : ℝ) ^ 2)) ≤ 2 := by
+  classical
+  have himage :
+      S.image label ⊆ Finset.range (M + 1) := by
+    intro m hm
+    obtain ⟨u, hu, rfl⟩ := Finset.mem_image.mp hm
+    exact Finset.mem_range.mpr (Nat.lt_succ_of_le (hbound u hu))
+  calc
+    (∑ u ∈ S, (1 : ℝ) / ((label u : ℝ) ^ 2)) =
+        ∑ m ∈ S.image label, (1 : ℝ) / ((m : ℝ) ^ 2) := by
+      rw [Finset.sum_image]
+      intro u hu v hv huv
+      exact hinj hu hv huv
+    _ ≤ ∑ m ∈ Finset.range (M + 1),
+          (1 : ℝ) / ((m : ℝ) ^ 2) := by
+      exact Finset.sum_le_sum_of_subset_of_nonneg himage
+        (fun m hm hnot => by positivity)
+    _ = ∑ k ∈ Finset.range M,
+          (1 : ℝ) / (((k + 1 : ℕ) : ℝ) ^ 2) := by
+      rw [Finset.sum_range_succ']
+      simp
+    _ ≤ 2 := sum_one_div_nat_square_le_two M
+
+/-- Reciprocal mass assigned to a ranked node. -/
+def rankedMass
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) : ℝ :=
+  (1 / 4 : ℝ) ^ n *
+    ∏ k ∈ Finset.range n,
+      (1 : ℝ) / ((rankedLabel a D k t : ℝ) ^ 2)
+
+@[simp] theorem rankedMass_zero
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0) (t : I) :
+    rankedMass a D 0 t = 1 := by
+  simp [rankedMass]
+
+theorem rankedMass_nonneg
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    0 ≤ rankedMass a D n t := by
+  unfold rankedMass
+  positivity
+
+theorem rankedMass_succ
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedMass a D (n + 1) t =
+      rankedMass a D n t * (1 / 4 : ℝ) *
+        ((1 : ℝ) / ((rankedLabel a D n t : ℝ) ^ 2)) := by
+  simp only [rankedMass, Finset.prod_range_succ, pow_succ]
+  ring
+
+theorem rankedMass_eq_of_mem
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) {s t : I}
+    (hs : s ∈ rankedCell a D n t) :
+    rankedMass a D n s = rankedMass a D n t := by
+  unfold rankedMass
+  congr 1
+  apply Finset.prod_congr rfl
+  intro k hk
+  have hkn : k < n := Finset.mem_range.mp hk
+  rw [rankedLabel_eq_of_mem a D hkn hs]
+
+open Classical in
+private theorem rankedMass_sibling_fiber_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) {p : I}
+    (hp : p ∈ rankedRepresentatives a D n) :
+    (∑ u ∈ (rankedRepresentatives a D (n + 1)).filter
+          (fun u => rankedRepresentative a D n u = p),
+        rankedMass a D (n + 1) u) ≤
+      (1 / 2 : ℝ) * rankedMass a D n p := by
+  classical
+  let S := (rankedRepresentatives a D (n + 1)).filter
+    (fun u => rankedRepresentative a D n u = p)
+  have hparent (u : I) (hu : u ∈ S) :
+      rankedRepresentative a D n u = p :=
+    (Finset.mem_filter.mp hu).2
+  have hnodes (u : I) (hu : u ∈ S) :
+      u ∈ rankedRepresentatives a D (n + 1) :=
+    (Finset.mem_filter.mp hu).1
+  have hpCell (u : I) (hu : u ∈ S) :
+      p ∈ rankedCell a D n u := by
+    have hmem := rankedRepresentative_mem a D n u
+    simpa [hparent u hu] using hmem
+  have hmass (u : I) (hu : u ∈ S) :
+      rankedMass a D n u = rankedMass a D n p :=
+    (rankedMass_eq_of_mem a D n (hpCell u hu)).symm
+  have hinj :
+      Set.InjOn (rankedLabel a D n) S := by
+    intro u hu v hv huv
+    exact rankedLabel_injective_on_siblings a D n
+      (hnodes u hu) (hnodes v hv)
+      ((hparent u hu).trans (hparent v hv).symm) huv
+  have hlabels :
+      (∑ u ∈ S,
+          (1 : ℝ) / ((rankedLabel a D n u : ℝ) ^ 2)) ≤ 2 := by
+    apply sum_inv_sq_le_two_of_injective
+      (rankedLabel a D n) hinj
+      (fun u hu => rankedLabel_pos a D n u)
+      (rankedCell a D n p).card
+    intro u hu
+    have hcell :
+        rankedCell a D n u = rankedCell a D n p := by
+      calc
+        rankedCell a D n u =
+            rankedCell a D n (rankedRepresentative a D n u) :=
+          (rankedCell_representative a D n u).symm
+        _ = rankedCell a D n p := by rw [hparent u hu]
+    simpa [hcell] using rankedLabel_le_cell_card a D n u
+  calc
+    (∑ u ∈ (rankedRepresentatives a D (n + 1)).filter
+          (fun u => rankedRepresentative a D n u = p),
+        rankedMass a D (n + 1) u) =
+        (rankedMass a D n p * (1 / 4 : ℝ)) *
+          ∑ u ∈ S,
+            (1 : ℝ) / ((rankedLabel a D n u : ℝ) ^ 2) := by
+      simp only [S, rankedMass_succ]
+      rw [Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro u hu
+      rw [hmass u hu]
+    _ ≤ (rankedMass a D n p * (1 / 4 : ℝ)) * 2 := by
+      exact mul_le_mul_of_nonneg_left hlabels
+        (mul_nonneg (rankedMass_nonneg a D n p) (by norm_num))
+    _ = (1 / 2 : ℝ) * rankedMass a D n p := by ring
+
+/-- Total reciprocal mass of the depth-`n` ranked nodes. -/
+def rankedMassSum
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) : ℝ :=
+  ∑ u ∈ rankedRepresentatives a D n, rankedMass a D n u
+
+theorem rankedMassSum_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) :
+    rankedMassSum a D n ≤ (1 / 2 : ℝ) ^ n := by
+  classical
+  induction n with
+  | zero =>
+      obtain ⟨t⟩ := ‹Nonempty I›
+      have hrep (u : I) :
+          rankedRepresentative a D 0 u =
+            rankedRepresentative a D 0 t :=
+        rankedRepresentative_eq_of_cell_eq a D 0 (by simp)
+      have himage :
+          Finset.univ.image (rankedRepresentative a D 0) =
+            {rankedRepresentative a D 0 t} := by
+        ext u
+        simp only [Finset.mem_image, Finset.mem_univ, true_and,
+          Finset.mem_singleton]
+        constructor
+        · rintro ⟨v, rfl⟩
+          exact hrep v
+        · intro hu
+          exact ⟨t, hu.symm⟩
+      simp [rankedMassSum, rankedRepresentatives, himage]
+  | succ n ih =>
+      have hmap :
+          ∀ u ∈ rankedRepresentatives a D (n + 1),
+            rankedRepresentative a D n u ∈
+              rankedRepresentatives a D n := by
+        intro u hu
+        exact rankedRepresentative_mem_representatives a D n u
+      have hfiber :
+          (∑ p ∈ rankedRepresentatives a D n,
+              ∑ u ∈ rankedRepresentatives a D (n + 1) with
+                rankedRepresentative a D n u = p,
+                rankedMass a D (n + 1) u) =
+            rankedMassSum a D (n + 1) := by
+        simpa [rankedMassSum] using
+          (Finset.sum_fiberwise_of_maps_to hmap
+            (fun u => rankedMass a D (n + 1) u))
+      rw [← hfiber]
+      calc
+        (∑ p ∈ rankedRepresentatives a D n,
+            ∑ u ∈ rankedRepresentatives a D (n + 1) with
+              rankedRepresentative a D n u = p,
+              rankedMass a D (n + 1) u) ≤
+            ∑ p ∈ rankedRepresentatives a D n,
+              (1 / 2 : ℝ) * rankedMass a D n p := by
+          apply Finset.sum_le_sum
+          intro p hp
+          exact rankedMass_sibling_fiber_le a D n hp
+        _ = (1 / 2 : ℝ) * rankedMassSum a D n := by
+          simp [rankedMassSum, Finset.mul_sum]
+        _ ≤ (1 / 2 : ℝ) * (1 / 2 : ℝ) ^ n := by
+          gcongr
+        _ = (1 / 2 : ℝ) ^ (n + 1) := by
+          rw [pow_succ']
+
+theorem rankedMass_eq_inv_code
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    rankedMass a D n t =
+      (rankedCode a D n t : ℝ)⁻¹ := by
+  simp only [rankedMass, rankedCode, Nat.cast_mul, Nat.cast_pow,
+    Nat.cast_ofNat, Nat.cast_prod, one_div]
+  rw [Finset.prod_inv_distrib]
+  rw [inv_pow, ← mul_inv]
+
+theorem geometric_half_sum_le_two (N : ℕ) :
+    (∑ n ∈ Finset.range N, (1 / 2 : ℝ) ^ n) ≤ 2 := by
+  rw [geom_sum_eq (by norm_num : (1 / 2 : ℝ) ≠ 1)]
+  have hpow : 0 ≤ (1 / 2 : ℝ) ^ N := by positivity
+  norm_num
+  linarith
+
+/-! ## Coded admissible levels -/
+
+/-- Ranked representatives at one depth whose multiplicative code is within
+the supplied budget. -/
+def rankedSelectedAtDepth
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (C n : ℕ) : Finset I := by
+  classical
+  exact (rankedRepresentatives a D n).filter
+    (fun u => rankedCode a D n u ≤ C)
+
+/-- All budget-selected nodes, retaining their depth so that nodes from
+different depths remain disjoint for mass counting. -/
+def rankedCodedNodes
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (C : ℕ) : Finset (ℕ × I) := by
+  classical
+  exact (Finset.range (C + 1)).biUnion fun n =>
+    (rankedSelectedAtDepth a D C n).image (fun u => (n, u))
+
+open Classical in
+private theorem rankedDepthPairImages_pairwiseDisjoint
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (C : ℕ) :
+    ((Finset.range (C + 1) : Finset ℕ) : Set ℕ).PairwiseDisjoint
+      (fun n =>
+        (rankedSelectedAtDepth a D C n).image (fun u => (n, u))) := by
+  classical
+  intro n hn m hm hnm
+  change Disjoint
+    ((rankedSelectedAtDepth a D C n).image (fun u => (n, u)))
+    ((rankedSelectedAtDepth a D C m).image (fun u => (m, u)))
+  rw [Finset.disjoint_left]
+  intro p hpn hpm
+  obtain ⟨u, hu, rfl⟩ := Finset.mem_image.mp hpn
+  obtain ⟨v, hv, huv⟩ := Finset.mem_image.mp hpm
+  have hfirst : n = m := by
+    simpa using (congrArg Prod.fst huv).symm
+  exact hnm hfirst
+
+theorem rankedCodedNodes_mass_le_two
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (C : ℕ) :
+    (∑ p ∈ rankedCodedNodes a D C,
+        rankedMass a D p.1 p.2) ≤ 2 := by
+  classical
+  rw [rankedCodedNodes,
+    Finset.sum_biUnion
+      (rankedDepthPairImages_pairwiseDisjoint a D C)]
+  calc
+    (∑ n ∈ Finset.range (C + 1),
+        ∑ p ∈ (rankedSelectedAtDepth a D C n).image
+            (fun u => (n, u)),
+          rankedMass a D p.1 p.2) =
+        ∑ n ∈ Finset.range (C + 1),
+          ∑ u ∈ rankedSelectedAtDepth a D C n,
+            rankedMass a D n u := by
+      apply Finset.sum_congr rfl
+      intro n hn
+      have hinj :
+          Set.InjOn (fun u : I => (n, u))
+            (rankedSelectedAtDepth a D C n) := by
+        intro u hu v hv huv
+        exact congrArg Prod.snd huv
+      rw [Finset.sum_image hinj]
+    _ ≤ ∑ n ∈ Finset.range (C + 1),
+          rankedMassSum a D n := by
+      apply Finset.sum_le_sum
+      intro n hn
+      exact Finset.sum_le_sum_of_subset_of_nonneg
+        (Finset.filter_subset _ _)
+        (fun u hu hnot => rankedMass_nonneg a D n u)
+    _ ≤ ∑ n ∈ Finset.range (C + 1),
+          (1 / 2 : ℝ) ^ n := by
+      apply Finset.sum_le_sum
+      intro n hn
+      exact rankedMassSum_le a D n
+    _ ≤ 2 := geometric_half_sum_le_two (C + 1)
+
+theorem rankedCodedNodes_card_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {C : ℕ} (hC : 0 < C) :
+    (rankedCodedNodes a D C).card ≤ 2 * C := by
+  classical
+  have hpoint (p : ℕ × I) (hp : p ∈ rankedCodedNodes a D C) :
+      (1 : ℝ) / (C : ℝ) ≤ rankedMass a D p.1 p.2 := by
+    rw [rankedCodedNodes] at hp
+    obtain ⟨n, hn, hp⟩ := Finset.mem_biUnion.mp hp
+    obtain ⟨u, hu, rfl⟩ := Finset.mem_image.mp hp
+    have hcode :
+        rankedCode a D n u ≤ C :=
+      (Finset.mem_filter.mp hu).2
+    rw [rankedMass_eq_inv_code, ← one_div]
+    exact one_div_le_one_div_of_le
+      (by exact_mod_cast rankedCode_pos a D n u)
+      (by exact_mod_cast hcode)
+  have hlower :
+      ((rankedCodedNodes a D C).card : ℝ) / C ≤
+        ∑ p ∈ rankedCodedNodes a D C,
+          rankedMass a D p.1 p.2 := by
+    calc
+      ((rankedCodedNodes a D C).card : ℝ) / C =
+          ∑ p ∈ rankedCodedNodes a D C,
+            (1 : ℝ) / (C : ℝ) := by
+        rw [Finset.sum_const]
+        simp [div_eq_mul_inv, nsmul_eq_mul]
+      _ ≤ ∑ p ∈ rankedCodedNodes a D C,
+          rankedMass a D p.1 p.2 := by
+        apply Finset.sum_le_sum
+        intro p hp
+        exact hpoint p hp
+  have hmass := rankedCodedNodes_mass_le_two a D C
+  have hCR : (0 : ℝ) < C := by exact_mod_cast hC
+  have hcardR :
+      ((rankedCodedNodes a D C).card : ℝ) ≤ 2 * C := by
+    apply (div_le_iff₀ hCR).mp
+    exact hlower.trans hmass
+  exact_mod_cast hcardR
+
+/-- Integer budget attached to admissible level `j`.  It is exactly half of
+the allowed cardinality `2^(2^j)`. -/
+def rankedThreshold (j : ℕ) : ℕ :=
+  2 ^ (2 ^ j - 1)
+
+theorem rankedThreshold_pos (j : ℕ) :
+    0 < rankedThreshold j := by
+  unfold rankedThreshold
+  positivity
+
+theorem two_mul_rankedThreshold (j : ℕ) :
+    2 * rankedThreshold j = 2 ^ (2 ^ j) := by
+  have hj : 0 < 2 ^ j := by positivity
+  calc
+    2 * rankedThreshold j =
+        2 ^ 1 * 2 ^ (2 ^ j - 1) := by
+      simp [rankedThreshold]
+    _ = 2 ^ (1 + (2 ^ j - 1)) := by
+      rw [← pow_add]
+    _ = 2 ^ (2 ^ j) := by
+      congr
+      omega
+
+/-- The budget-selected representative level, with a prescribed singleton
+anchor at level zero. -/
+def rankedAdmissibleLevel
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (anchor : I) (j : ℕ) : Finset I := by
+  classical
+  exact if j = 0 then {anchor}
+    else (rankedCodedNodes a D (rankedThreshold j)).image Prod.snd
+
+theorem rankedAdmissibleLevel_nonempty
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (anchor : I) (j : ℕ) :
+    (rankedAdmissibleLevel a D anchor j).Nonempty := by
+  classical
+  by_cases hj : j = 0
+  · exact ⟨anchor, by simp [rankedAdmissibleLevel, hj]⟩
+  let u := rankedRepresentative a D 0 anchor
+  have hCone : 1 ≤ rankedThreshold j := by
+    exact Nat.one_le_iff_ne_zero.mpr
+      (Nat.ne_of_gt (rankedThreshold_pos j))
+  have huNodes : (0, u) ∈
+      rankedCodedNodes a D (rankedThreshold j) := by
+    rw [rankedCodedNodes]
+    apply Finset.mem_biUnion.mpr
+    refine ⟨0, by simp, ?_⟩
+    apply Finset.mem_image.mpr
+    refine ⟨u, ?_, rfl⟩
+    rw [rankedSelectedAtDepth, Finset.mem_filter]
+    exact ⟨rankedRepresentative_mem_representatives a D 0 anchor,
+      by simpa [u] using hCone⟩
+  refine ⟨u, ?_⟩
+  simp only [rankedAdmissibleLevel, hj, if_false]
+  exact Finset.mem_image.mpr ⟨(0, u), huNodes, rfl⟩
+
+@[simp] theorem rankedAdmissibleLevel_zero
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (anchor : I) :
+    rankedAdmissibleLevel a D anchor 0 = {anchor} := by
+  simp [rankedAdmissibleLevel]
+
+theorem rankedAdmissibleLevel_card_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (anchor : I) (j : ℕ) :
+    (rankedAdmissibleLevel a D anchor j).card ≤
+      2 ^ (2 ^ j) := by
+  classical
+  by_cases hj : j = 0
+  · simp [rankedAdmissibleLevel, hj]
+  rw [rankedAdmissibleLevel, if_neg hj]
+  calc
+    ((rankedCodedNodes a D (rankedThreshold j)).image Prod.snd).card ≤
+        (rankedCodedNodes a D (rankedThreshold j)).card :=
+      Finset.card_image_le
+    _ ≤ 2 * rankedThreshold j :=
+      rankedCodedNodes_card_le a D (rankedThreshold_pos j)
+    _ = 2 ^ (2 ^ j) := two_mul_rankedThreshold j
+
+private theorem nat_le_two_pow_appendix (n : ℕ) :
+    n ≤ 2 ^ n := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+      cases n with
+      | zero => norm_num
+      | succ n =>
+          rw [pow_succ]
+          omega
+
+/-- Explicit admissible chain obtained from the coded ranked levels, followed
+by the universal terminal level. -/
+noncomputable def rankedFiniteAdmissibleChain
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (anchor : I) : HDP.FiniteAdmissibleChain I := by
+  classical
+  let N := Fintype.card I
+  let L : Fin (N + 1) → Finset I := fun k =>
+    if (k : ℕ) = N then Finset.univ
+    else rankedAdmissibleLevel a D anchor k
+  have hN0 : N ≠ 0 := Fintype.card_ne_zero
+  have hNle : N ≤ 2 ^ (2 ^ N) :=
+    (nat_le_two_pow_appendix N).trans
+      (Nat.pow_le_pow_right (by norm_num : 0 < 2)
+        (nat_le_two_pow_appendix N))
+  refine
+    { terminal := N
+      level := L
+      level_nonempty := ?_
+      level_zero_card := ?_
+      level_card_le := ?_
+      level_terminal := ?_ }
+  · intro k
+    by_cases hk : (k : ℕ) = N
+    · simp [L, hk]
+    · simpa [L, hk] using
+        rankedAdmissibleLevel_nonempty a D anchor (k : ℕ)
+  · change (if (0 : ℕ) = N then (Finset.univ : Finset I)
+      else rankedAdmissibleLevel a D anchor 0).card = 1
+    rw [if_neg (Ne.symm hN0)]
+    simp
+  · intro k
+    by_cases hk : (k : ℕ) = N
+    · have hlevel : L k = (Finset.univ : Finset I) := by
+        simp [L, hk]
+      rw [hlevel, Finset.card_univ, hk]
+      exact hNle
+    · simpa [L, hk] using
+        rankedAdmissibleLevel_card_le a D anchor (k : ℕ)
+  · simp [L]
+
+/-! ## Selected depths and approximation geometry -/
+
+/-- Depths whose code fits a given positive budget. -/
+def rankedEligibleDepths
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (C : ℕ) (t : I) : Finset ℕ :=
+  (Finset.range (C + 1)).filter
+    (fun n => rankedCode a D n t ≤ C)
+
+theorem rankedEligibleDepths_nonempty
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {C : ℕ} (hC : 0 < C) (t : I) :
+    (rankedEligibleDepths a D C t).Nonempty := by
+  refine ⟨0, ?_⟩
+  rw [rankedEligibleDepths, Finset.mem_filter]
+  exact ⟨by simp, by
+    simpa using (Nat.one_le_iff_ne_zero.mpr (Nat.ne_of_gt hC))⟩
+
+/-- Deepest ranked cell whose code fits the budget. -/
+noncomputable def rankedSelectedDepth
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (C : ℕ) (t : I) : ℕ := by
+  classical
+  exact if hC : 0 < C then
+    (rankedEligibleDepths a D C t).max'
+      (rankedEligibleDepths_nonempty a D hC t)
+  else 0
+
+theorem rankedSelectedDepth_mem
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {C : ℕ} (hC : 0 < C) (t : I) :
+    rankedSelectedDepth a D C t ∈
+      rankedEligibleDepths a D C t := by
+  classical
+  rw [rankedSelectedDepth, dif_pos hC]
+  exact Finset.max'_mem _ _
+
+theorem rankedSelectedDepth_code_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {C : ℕ} (hC : 0 < C) (t : I) :
+    rankedCode a D (rankedSelectedDepth a D C t) t ≤ C :=
+  (Finset.mem_filter.mp (rankedSelectedDepth_mem a D hC t)).2
+
+private theorem nat_lt_four_pow_self
+    {C : ℕ} (hC : 0 < C) :
+    C < 4 ^ C := by
+  have htwo : C ≤ 2 ^ C := nat_le_two_pow_appendix C
+  have hpow : 2 ^ C < 4 ^ C :=
+    Nat.pow_lt_pow_left (by omega) (Nat.ne_of_gt hC)
+  exact htwo.trans_lt hpow
+
+theorem rankedSelectedDepth_lt_budget
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {C : ℕ} (hC : 0 < C) (t : I) :
+    rankedSelectedDepth a D C t < C := by
+  let n := rankedSelectedDepth a D C t
+  have hnle := rankedSelectedDepth_code_le a D hC t
+  change rankedCode a D n t ≤ C at hnle
+  have hfour := four_pow_le_rankedCode a D n t
+  have hlt := nat_lt_four_pow_self hC
+  change n < C
+  by_contra hnot
+  have hCn : C ≤ n := by omega
+  have hpowers : 4 ^ C ≤ 4 ^ n :=
+    Nat.pow_le_pow_right (by norm_num) hCn
+  omega
+
+theorem rankedSelectedDepth_next_code_gt
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {C : ℕ} (hC : 0 < C) (t : I) :
+    C < rankedCode a D (rankedSelectedDepth a D C t + 1) t := by
+  classical
+  let n := rankedSelectedDepth a D C t
+  by_contra hnot
+  change ¬ C < rankedCode a D (n + 1) t at hnot
+  have hnextCode :
+      rankedCode a D (n + 1) t ≤ C := by omega
+  have hnlt : n < C := rankedSelectedDepth_lt_budget a D hC t
+  have hnextMem :
+      n + 1 ∈ rankedEligibleDepths a D C t := by
+    rw [rankedEligibleDepths, Finset.mem_filter]
+    exact ⟨Finset.mem_range.mpr (by omega), hnextCode⟩
+  have hmax :
+      n + 1 ≤ n := by
+    change n + 1 ≤ rankedSelectedDepth a D C t
+    rw [rankedSelectedDepth, dif_pos hC]
+    exact Finset.le_max' _ _ hnextMem
+  omega
+
+theorem rankedSelectedRepresentative_mem_codedNodes
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    {C : ℕ} (hC : 0 < C) (t : I) :
+    (rankedSelectedDepth a D C t,
+        rankedRepresentative a D
+          (rankedSelectedDepth a D C t) t) ∈
+      rankedCodedNodes a D C := by
+  classical
+  let n := rankedSelectedDepth a D C t
+  let u := rankedRepresentative a D n t
+  rw [rankedCodedNodes]
+  apply Finset.mem_biUnion.mpr
+  refine ⟨n, Finset.mem_range.mpr (by
+    have := rankedSelectedDepth_lt_budget a D hC t
+    omega), ?_⟩
+  apply Finset.mem_image.mpr
+  refine ⟨u, ?_, rfl⟩
+  rw [rankedSelectedAtDepth, Finset.mem_filter]
+  refine ⟨rankedRepresentative_mem_representatives a D n t, ?_⟩
+  have hcode := rankedSelectedDepth_code_le a D hC t
+  have heq := rankedCode_eq_of_mem a D n
+    (rankedRepresentative_mem a D n t)
+  simpa [n, u, heq] using hcode
+
+theorem rankedSelectedRepresentative_mem_level
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (anchor : I) {j : ℕ} (hj : j ≠ 0) (t : I) :
+    rankedRepresentative a D
+        (rankedSelectedDepth a D (rankedThreshold j) t) t ∈
+      rankedAdmissibleLevel a D anchor j := by
+  classical
+  rw [rankedAdmissibleLevel, if_neg hj]
+  apply Finset.mem_image.mpr
+  exact ⟨(rankedSelectedDepth a D (rankedThreshold j) t,
+      rankedRepresentative a D
+        (rankedSelectedDepth a D (rankedThreshold j) t) t),
+    rankedSelectedRepresentative_mem_codedNodes
+      a D (rankedThreshold_pos j) t, rfl⟩
+
+/-! ## Numerical control of the scale fibers -/
+
+theorem sqrt_two_pow_eq (j : ℕ) :
+    Real.sqrt ((2 : ℝ) ^ j) = (Real.sqrt 2) ^ j := by
+  induction j with
+  | zero => simp
+  | succ j ih =>
+      rw [pow_succ, pow_succ, Real.sqrt_mul (by positivity), ih]
+
+theorem sum_sqrt_two_pow_le_six (r : ℕ) :
+    (∑ j ∈ Finset.range (r + 1),
+        Real.sqrt ((2 : ℝ) ^ j)) ≤
+      6 * Real.sqrt ((2 : ℝ) ^ r) := by
+  simp_rw [sqrt_two_pow_eq]
+  let q := Real.sqrt 2
+  let S := ∑ j ∈ Finset.range (r + 1), q ^ j
+  have hq0 : 0 ≤ q := Real.sqrt_nonneg _
+  have hq2 : q ^ 2 = 2 := Real.sq_sqrt (by norm_num)
+  have hqLower : (4 / 3 : ℝ) ≤ q := by
+    nlinarith
+  have hqUpper : q ≤ 2 := by
+    nlinarith
+  have hS0 : 0 ≤ S := by
+    exact Finset.sum_nonneg fun j hj => pow_nonneg hq0 _
+  have hcoeff : (1 / 3 : ℝ) ≤ q - 1 := by
+    linarith
+  have hleft :
+      (1 / 3 : ℝ) * S ≤ (q - 1) * S :=
+    mul_le_mul_of_nonneg_right hcoeff hS0
+  have hgeom :
+      (q - 1) * S = q ^ (r + 1) - 1 := by
+    simpa [S] using mul_geom_sum q (r + 1)
+  have hpow :
+      q ^ (r + 1) ≤ 2 * q ^ r := by
+    rw [pow_succ']
+    exact mul_le_mul_of_nonneg_right hqUpper
+      (pow_nonneg hq0 r)
+  change S ≤ 6 * q ^ r
+  nlinarith
+
+theorem sqrt_two_pow_le_two_sqrt_log_of_threshold_lt
+    {j M : ℕ} (hj : 1 ≤ j)
+    (hM : rankedThreshold j < M) :
+    Real.sqrt ((2 : ℝ) ^ j) ≤
+      2 * Real.sqrt (Real.log (M : ℝ)) := by
+  have hpowNat : 2 ≤ 2 ^ j := by
+    have := Nat.pow_le_pow_right (by norm_num : 0 < 2) hj
+    simpa using this
+  have hthresholdTwo : 2 ≤ rankedThreshold j := by
+    unfold rankedThreshold
+    have hexp : 1 ≤ 2 ^ j - 1 := by omega
+    exact (Nat.pow_le_pow_right (by norm_num : 0 < 2) hexp)
+  have hthresholdPos : 0 < rankedThreshold j :=
+    rankedThreshold_pos j
+  have hMpos : (0 : ℝ) < M := by
+    exact_mod_cast (hthresholdPos.trans hM)
+  have hlogMono :
+      Real.log (rankedThreshold j : ℝ) ≤
+        Real.log (M : ℝ) := by
+    apply Real.log_le_log
+    · exact_mod_cast hthresholdPos
+    · exact_mod_cast hM.le
+  have hlogThreshold :
+      Real.log (rankedThreshold j : ℝ) =
+        ((2 ^ j - 1 : ℕ) : ℝ) * Real.log 2 := by
+    rw [show (rankedThreshold j : ℝ) =
+        (2 : ℝ) ^ (2 ^ j - 1) by
+      norm_num [rankedThreshold]]
+    rw [Real.log_pow]
+  have hlog2 : (2 / 3 : ℝ) ≤ Real.log 2 := by
+    nlinarith [Real.log_two_gt_d9]
+  have hexp :
+      ((1 / 2 : ℝ) * (2 : ℝ) ^ j) ≤
+        ((2 ^ j - 1 : ℕ) : ℝ) := by
+    have hnat : 2 ^ j ≤ 2 * (2 ^ j - 1) := by omega
+    have hcast :
+        ((2 ^ j : ℕ) : ℝ) ≤
+          2 * (((2 ^ j - 1 : ℕ) : ℝ)) := by
+      exact_mod_cast hnat
+    norm_num at hcast ⊢
+    nlinarith
+  have hbase :
+      (1 / 3 : ℝ) * (2 : ℝ) ^ j ≤
+        Real.log (rankedThreshold j : ℝ) := by
+    rw [hlogThreshold]
+    have hnonneg :
+        0 ≤ ((2 ^ j - 1 : ℕ) : ℝ) := by positivity
+    calc
+      (1 / 3 : ℝ) * (2 : ℝ) ^ j ≤
+          ((2 ^ j - 1 : ℕ) : ℝ) * (2 / 3 : ℝ) := by
+        nlinarith
+      _ ≤ ((2 ^ j - 1 : ℕ) : ℝ) * Real.log 2 :=
+        mul_le_mul_of_nonneg_left hlog2 hnonneg
+  have hmain :
+      (2 : ℝ) ^ j ≤ 3 * Real.log (M : ℝ) := by
+    nlinarith
+  have hlogM : 0 ≤ Real.log (M : ℝ) :=
+    Real.log_nonneg (by exact_mod_cast
+      (show 1 ≤ M by omega))
+  have hsqrtPow0 := Real.sqrt_nonneg ((2 : ℝ) ^ j)
+  have hsqrtLog0 := Real.sqrt_nonneg (Real.log (M : ℝ))
+  have hsqrtPowSq :
+      (Real.sqrt ((2 : ℝ) ^ j)) ^ 2 = (2 : ℝ) ^ j :=
+    Real.sq_sqrt (by positivity)
+  have hsqrtLogSq :
+      (Real.sqrt (Real.log (M : ℝ))) ^ 2 =
+        Real.log (M : ℝ) :=
+    Real.sq_sqrt hlogM
+  nlinarith
+
+/-- Scales below `N` whose selected ranked depth equals `n`. -/
+def rankedScaleFiber
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (N : ℕ) (t : I) (n : ℕ) : Finset ℕ :=
+  (Finset.range N).filter fun j =>
+    j ≠ 0 ∧ rankedSelectedDepth a D (rankedThreshold j) t = n
+
+theorem rankedScaleFiber_weight_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (N : ℕ) (t : I) (n : ℕ) :
+    (∑ j ∈ rankedScaleFiber a D N t n,
+        Real.sqrt ((2 : ℝ) ^ j)) ≤
+      12 * Real.sqrt
+        (Real.log (rankedCode a D (n + 1) t : ℝ)) := by
+  classical
+  by_cases hS : (rankedScaleFiber a D N t n).Nonempty
+  · let r := (rankedScaleFiber a D N t n).max' hS
+    have hrmem :
+        r ∈ rankedScaleFiber a D N t n :=
+      Finset.max'_mem _ _
+    have hrone : 1 ≤ r := by
+      have := (Finset.mem_filter.mp hrmem).2.1
+      omega
+    have hrdepth :
+        rankedSelectedDepth a D (rankedThreshold r) t = n :=
+      (Finset.mem_filter.mp hrmem).2.2
+    have hthreshold :
+        rankedThreshold r <
+          rankedCode a D (n + 1) t := by
+      simpa [hrdepth] using
+        rankedSelectedDepth_next_code_gt
+          a D (rankedThreshold_pos r) t
+    have hsubset :
+        rankedScaleFiber a D N t n ⊆ Finset.range (r + 1) := by
+      intro j hj
+      exact Finset.mem_range.mpr
+        (Nat.lt_succ_of_le (Finset.le_max' _ _ hj))
+    calc
+      (∑ j ∈ rankedScaleFiber a D N t n,
+          Real.sqrt ((2 : ℝ) ^ j)) ≤
+          ∑ j ∈ Finset.range (r + 1),
+            Real.sqrt ((2 : ℝ) ^ j) := by
+        exact Finset.sum_le_sum_of_subset_of_nonneg hsubset
+          (fun j hj hnot => Real.sqrt_nonneg _)
+      _ ≤ 6 * Real.sqrt ((2 : ℝ) ^ r) :=
+        sum_sqrt_two_pow_le_six r
+      _ ≤ 6 * (2 * Real.sqrt
+          (Real.log (rankedCode a D (n + 1) t : ℝ))) := by
+        gcongr
+        exact sqrt_two_pow_le_two_sqrt_log_of_threshold_lt
+          hrone hthreshold
+      _ = 12 * Real.sqrt
+          (Real.log (rankedCode a D (n + 1) t : ℝ)) := by ring
+  · rw [Finset.not_nonempty_iff_eq_empty.mp hS]
+    simp
+
+/-! ## Expanding the cumulative rank code -/
+
+theorem log_rankedCode_succ
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    Real.log (rankedCode a D (n + 1) t : ℝ) =
+      ((n + 1 : ℕ) : ℝ) * Real.log 4 +
+        2 * ∑ k ∈ Finset.range (n + 1),
+          Real.log (rankedLabel a D k t : ℝ) := by
+  have hlabelNe (k : ℕ) :
+      (rankedLabel a D k t : ℝ) ^ 2 ≠ 0 := by
+    have hk : (0 : ℝ) < rankedLabel a D k t := by
+      exact_mod_cast rankedLabel_pos a D k t
+    positivity
+  simp only [rankedCode, Nat.cast_mul, Nat.cast_pow,
+    Nat.cast_ofNat, Nat.cast_prod]
+  rw [Real.log_mul (by positivity)
+    (Finset.prod_ne_zero_iff.mpr fun k hk => hlabelNe k)]
+  rw [Real.log_pow]
+  rw [Real.log_prod (fun k hk => hlabelNe k)]
+  simp_rw [Real.log_pow]
+  rw [← Finset.mul_sum]
+  ring
+
+theorem sqrt_log_rankedCode_succ_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (n : ℕ) (t : I) :
+    Real.sqrt (Real.log (rankedCode a D (n + 1) t : ℝ)) ≤
+      2 * (n + 1 : ℝ) +
+        2 * ∑ k ∈ Finset.range (n + 1),
+          Real.sqrt (Real.log (rankedLabel a D k t : ℝ)) := by
+  let L := ∑ k ∈ Finset.range (n + 1),
+    Real.sqrt (Real.log (rankedLabel a D k t : ℝ))
+  have hlogLabel (k : ℕ) :
+      0 ≤ Real.log (rankedLabel a D k t : ℝ) := by
+    apply Real.log_nonneg
+    exact_mod_cast (rankedLabel_pos a D k t)
+  have hL0 : 0 ≤ L := by
+    exact Finset.sum_nonneg fun k hk => Real.sqrt_nonneg _
+  have hsumSq :
+      (∑ k ∈ Finset.range (n + 1),
+          (Real.sqrt
+            (Real.log (rankedLabel a D k t : ℝ))) ^ 2) ≤
+        L ^ 2 := by
+    exact Finset.sum_sq_le_sq_sum_of_nonneg
+      (fun k hk => Real.sqrt_nonneg _)
+  have hsumLog :
+      (∑ k ∈ Finset.range (n + 1),
+          Real.log (rankedLabel a D k t : ℝ)) ≤
+        L ^ 2 := by
+    calc
+      (∑ k ∈ Finset.range (n + 1),
+          Real.log (rankedLabel a D k t : ℝ)) =
+          ∑ k ∈ Finset.range (n + 1),
+            (Real.sqrt
+              (Real.log (rankedLabel a D k t : ℝ))) ^ 2 := by
+        apply Finset.sum_congr rfl
+        intro k hk
+        exact (Real.sq_sqrt (hlogLabel k)).symm
+      _ ≤ L ^ 2 := hsumSq
+  have hlog4 : Real.log 4 ≤ 2 := by
+    have hlog4eq : Real.log 4 = 2 * Real.log 2 := by
+      calc
+        Real.log 4 = Real.log ((2 : ℝ) ^ 2) := by norm_num
+        _ = (2 : ℕ) * Real.log 2 := Real.log_pow (2 : ℝ) 2
+        _ = 2 * Real.log 2 := by norm_num
+    rw [hlog4eq]
+    nlinarith [Real.log_two_gt_d9,
+      Real.log_le_sub_one_of_pos (by norm_num : (0 : ℝ) < 2)]
+  have hm0 : 0 ≤ (n + 1 : ℝ) := by positivity
+  have hm1 : 1 ≤ (n + 1 : ℝ) := by norm_num
+  have hlogCode :
+      Real.log (rankedCode a D (n + 1) t : ℝ) ≤
+        2 * (n + 1 : ℝ) ^ 2 + 2 * L ^ 2 := by
+    rw [log_rankedCode_succ]
+    have hfirst :
+        (n + 1 : ℝ) * Real.log 4 ≤
+          2 * (n + 1 : ℝ) ^ 2 := by
+      calc
+        (n + 1 : ℝ) * Real.log 4 ≤
+            (n + 1 : ℝ) * 2 :=
+          mul_le_mul_of_nonneg_left hlog4 hm0
+        _ ≤ 2 * (n + 1 : ℝ) ^ 2 := by
+          nlinarith
+    norm_num [Nat.cast_add, Nat.cast_one] at hfirst ⊢
+    nlinarith
+  have hcodeOne : 1 ≤ rankedCode a D (n + 1) t :=
+    Nat.one_le_iff_ne_zero.mpr
+      (Nat.ne_of_gt (rankedCode_pos a D (n + 1) t))
+  have hlogCode0 :
+      0 ≤ Real.log (rankedCode a D (n + 1) t : ℝ) :=
+    Real.log_nonneg (by exact_mod_cast hcodeOne)
+  have hright0 :
+      0 ≤ 2 * (n + 1 : ℝ) + 2 * L := by positivity
+  have hsqrt0 :=
+    Real.sqrt_nonneg
+      (Real.log (rankedCode a D (n + 1) t : ℝ))
+  have hsqrtSq :
+      (Real.sqrt
+        (Real.log (rankedCode a D (n + 1) t : ℝ))) ^ 2 =
+          Real.log (rankedCode a D (n + 1) t : ℝ) :=
+    Real.sq_sqrt hlogCode0
+  change _ ≤ 2 * (n + 1 : ℝ) + 2 * L
+  nlinarith [mul_nonneg hm0 hL0]
+
+private theorem nat_succ_le_two_pow_appendix (n : ℕ) :
+    n + 1 ≤ 2 ^ n := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+      rw [pow_succ]
+      omega
+
+theorem radius_mul_succ_sum_le_two
+    (D : ℝ≥0) (B : ℕ) :
+    (∑ n ∈ Finset.range B,
+        (majorizingRadius D n : ℝ) * (n + 1 : ℝ)) ≤
+      2 * D := by
+  have hpoint (n : ℕ) :
+      (majorizingRadius D n : ℝ) * (n + 1 : ℝ) ≤
+        (D : ℝ) * (1 / 2 : ℝ) ^ n := by
+    have hnNat := nat_succ_le_two_pow_appendix n
+    have hn : (n + 1 : ℝ) ≤ (2 : ℝ) ^ n := by
+      exact_mod_cast hnNat
+    have hq :
+        ((majorizingRatio : ℝ≥0) : ℝ) =
+          (1 / 100000 : ℝ) := by
+      norm_num [majorizingRatio]
+    have hpow :
+        (1 / 100000 : ℝ) ^ n ≤ (1 / 4 : ℝ) ^ n := by
+      gcongr
+      norm_num
+    have hmul :
+        (1 / 100000 : ℝ) ^ n * (n + 1 : ℝ) ≤
+          (1 / 4 : ℝ) ^ n * (2 : ℝ) ^ n := by
+      exact mul_le_mul hpow hn (by positivity) (by positivity)
+    have heq :
+        (1 / 4 : ℝ) ^ n * (2 : ℝ) ^ n =
+          (1 / 2 : ℝ) ^ n := by
+      rw [← mul_pow]
+      norm_num
+    rw [majorizingRadius, NNReal.coe_mul, NNReal.coe_pow, hq]
+    calc
+      (D : ℝ) * (1 / 100000 : ℝ) ^ n * (n + 1 : ℝ) =
+          (D : ℝ) *
+            ((1 / 100000 : ℝ) ^ n * (n + 1 : ℝ)) := by ring
+      _ ≤ (D : ℝ) *
+          ((1 / 4 : ℝ) ^ n * (2 : ℝ) ^ n) := by
+        gcongr
+      _ = (D : ℝ) * (1 / 2 : ℝ) ^ n := by rw [heq]
+  calc
+    (∑ n ∈ Finset.range B,
+        (majorizingRadius D n : ℝ) * (n + 1 : ℝ)) ≤
+        ∑ n ∈ Finset.range B,
+          (D : ℝ) * (1 / 2 : ℝ) ^ n := by
+      apply Finset.sum_le_sum
+      intro n hn
+      exact hpoint n
+    _ = (D : ℝ) *
+        ∑ n ∈ Finset.range B, (1 / 2 : ℝ) ^ n := by
+      rw [Finset.mul_sum]
+    _ ≤ (D : ℝ) * 2 := by
+      gcongr
+      exact geometric_half_sum_le_two B
+    _ = 2 * D := by ring
+
+theorem majorizingRadius_tail_sum_le
+    (D : ℝ≥0) (k B : ℕ) :
+    (∑ n ∈ Finset.Ico k B,
+        (majorizingRadius D n : ℝ)) ≤
+      2 * majorizingRadius D k := by
+  have hq :
+      ((majorizingRatio : ℝ≥0) : ℝ) =
+        (1 / 100000 : ℝ) := by
+    norm_num [majorizingRatio]
+  have hgeom :
+      (∑ n ∈ Finset.Ico k B,
+          (1 / 100000 : ℝ) ^ n) ≤
+        (1 / 100000 : ℝ) ^ k /
+          (1 - (1 / 100000 : ℝ)) :=
+    geom_sum_Ico_le_of_lt_one (by norm_num) (by norm_num)
+  have hden :
+      (1 / 100000 : ℝ) ^ k /
+          (1 - (1 / 100000 : ℝ)) ≤
+        2 * (1 / 100000 : ℝ) ^ k := by
+    have hp : 0 ≤ (1 / 100000 : ℝ) ^ k := by positivity
+    norm_num
+    nlinarith
+  simp_rw [majorizingRadius, NNReal.coe_mul, NNReal.coe_pow, hq]
+  rw [← Finset.mul_sum]
+  calc
+    (D : ℝ) *
+        (∑ n ∈ Finset.Ico k B,
+          (1 / 100000 : ℝ) ^ n) ≤
+        (D : ℝ) *
+          ((1 / 100000 : ℝ) ^ k /
+            (1 - (1 / 100000 : ℝ))) := by
+      gcongr
+    _ ≤ (D : ℝ) *
+        (2 * (1 / 100000 : ℝ) ^ k) := by
+      gcongr
+    _ = 2 * ((D : ℝ) * (1 / 100000 : ℝ) ^ k) := by ring
+
+private theorem triangle_sum_swap
+    (B : ℕ) (f : ℕ → ℕ → ℝ) :
+    (∑ n ∈ Finset.range B,
+        ∑ k ∈ Finset.range (n + 1), f n k) =
+      ∑ k ∈ Finset.range B,
+        ∑ n ∈ Finset.Ico k B, f n k := by
+  calc
+    (∑ n ∈ Finset.range B,
+        ∑ k ∈ Finset.range (n + 1), f n k) =
+        ∑ n ∈ Finset.range B,
+          ∑ k ∈ Finset.range B,
+            if k ≤ n then f n k else 0 := by
+      apply Finset.sum_congr rfl
+      intro n hn
+      have hnB : n < B := Finset.mem_range.mp hn
+      have hset :
+          Finset.range (n + 1) =
+            (Finset.range B).filter (fun k => k ≤ n) := by
+        ext k
+        simp
+        omega
+      rw [hset, Finset.sum_filter]
+    _ = ∑ k ∈ Finset.range B,
+          ∑ n ∈ Finset.range B,
+            if k ≤ n then f n k else 0 := by
+      rw [Finset.sum_comm]
+    _ = ∑ k ∈ Finset.range B,
+        ∑ n ∈ Finset.Ico k B, f n k := by
+      apply Finset.sum_congr rfl
+      intro k hk
+      have hset :
+          Finset.Ico k B =
+            (Finset.range B).filter (fun n => k ≤ n) := by
+        ext n
+        simp [Finset.mem_Ico, and_comm]
+      rw [hset, Finset.sum_filter]
+
+theorem majorizingRadius_cumulativeLabel_sum_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (B : ℕ) (t : I) :
+    (∑ n ∈ Finset.range B,
+        (majorizingRadius D n : ℝ) *
+          ∑ k ∈ Finset.range (n + 1),
+            Real.sqrt
+              (Real.log (rankedLabel a D k t : ℝ))) ≤
+      200000 *
+        ∑ k ∈ Finset.range B, rankedGrowthTerm a D k t := by
+  let l : ℕ → ℝ := fun k =>
+    Real.sqrt (Real.log (rankedLabel a D k t : ℝ))
+  have hl (k : ℕ) : 0 ≤ l k := Real.sqrt_nonneg _
+  have hswap :
+      (∑ n ∈ Finset.range B,
+          (majorizingRadius D n : ℝ) *
+            ∑ k ∈ Finset.range (n + 1), l k) =
+        ∑ k ∈ Finset.range B,
+          l k * ∑ n ∈ Finset.Ico k B,
+            (majorizingRadius D n : ℝ) := by
+    calc
+      (∑ n ∈ Finset.range B,
+          (majorizingRadius D n : ℝ) *
+            ∑ k ∈ Finset.range (n + 1), l k) =
+          ∑ n ∈ Finset.range B,
+            ∑ k ∈ Finset.range (n + 1),
+              (majorizingRadius D n : ℝ) * l k := by
+        apply Finset.sum_congr rfl
+        intro n hn
+        rw [Finset.mul_sum]
+      _ = ∑ k ∈ Finset.range B,
+          ∑ n ∈ Finset.Ico k B,
+            (majorizingRadius D n : ℝ) * l k :=
+        triangle_sum_swap B
+          (fun n k => (majorizingRadius D n : ℝ) * l k)
+      _ = ∑ k ∈ Finset.range B,
+          l k * ∑ n ∈ Finset.Ico k B,
+            (majorizingRadius D n : ℝ) := by
+        apply Finset.sum_congr rfl
+        intro k hk
+        rw [Finset.mul_sum]
+        apply Finset.sum_congr rfl
+        intro n hn
+        ring
+  rw [hswap]
+  calc
+    (∑ k ∈ Finset.range B,
+        l k * ∑ n ∈ Finset.Ico k B,
+          (majorizingRadius D n : ℝ)) ≤
+        ∑ k ∈ Finset.range B,
+          l k * (2 * (majorizingRadius D k : ℝ)) := by
+      apply Finset.sum_le_sum
+      intro k hk
+      exact mul_le_mul_of_nonneg_left
+        (majorizingRadius_tail_sum_le D k B) (hl k)
+    _ = 200000 *
+        ∑ k ∈ Finset.range B, rankedGrowthTerm a D k t := by
+      rw [Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro k hk
+      have hradius :
+          (majorizingRadius D k : ℝ) =
+            100000 * (majorizingRadius D (k + 1) : ℝ) := by
+        rw [majorizingRadius_succ, NNReal.coe_mul]
+        norm_num [majorizingRatio]
+        ring
+      simp only [rankedGrowthTerm, l]
+      rw [hradius]
+      ring
+
+theorem majorizingRadius_sqrt_log_code_sum_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (B : ℕ) (t : I) :
+    (∑ n ∈ Finset.range B,
+        (majorizingRadius D n : ℝ) *
+          Real.sqrt
+            (Real.log (rankedCode a D (n + 1) t : ℝ))) ≤
+      4 * D +
+        400000 *
+          ∑ k ∈ Finset.range B, rankedGrowthTerm a D k t := by
+  calc
+    (∑ n ∈ Finset.range B,
+        (majorizingRadius D n : ℝ) *
+          Real.sqrt
+            (Real.log (rankedCode a D (n + 1) t : ℝ))) ≤
+        ∑ n ∈ Finset.range B,
+          (majorizingRadius D n : ℝ) *
+            (2 * (n + 1 : ℝ) +
+              2 * ∑ k ∈ Finset.range (n + 1),
+                Real.sqrt
+                  (Real.log (rankedLabel a D k t : ℝ))) := by
+      apply Finset.sum_le_sum
+      intro n hn
+      exact mul_le_mul_of_nonneg_left
+        (sqrt_log_rankedCode_succ_le a D n t)
+        (majorizingRadius D n).property
+    _ = 2 * (∑ n ∈ Finset.range B,
+          (majorizingRadius D n : ℝ) * (n + 1 : ℝ)) +
+        2 * (∑ n ∈ Finset.range B,
+          (majorizingRadius D n : ℝ) *
+            ∑ k ∈ Finset.range (n + 1),
+              Real.sqrt
+                (Real.log (rankedLabel a D k t : ℝ))) := by
+      simp only [mul_add]
+      rw [Finset.sum_add_distrib]
+      congr 1
+      · rw [Finset.mul_sum]
+        apply Finset.sum_congr rfl
+        intro n hn
+        ring
+      · rw [Finset.mul_sum]
+        apply Finset.sum_congr rfl
+        intro n hn
+        ring
+    _ ≤ 2 * (2 * D) +
+        2 * (200000 *
+          ∑ k ∈ Finset.range B, rankedGrowthTerm a D k t) := by
+      gcongr
+      · exact radius_mul_succ_sum_le_two D B
+      · exact majorizingRadius_cumulativeLabel_sum_le a D B t
+    _ = 4 * D +
+        400000 *
+          ∑ k ∈ Finset.range B, rankedGrowthTerm a D k t := by ring
+
+theorem rankedThreshold_mono :
+    Monotone rankedThreshold := by
+  intro j k hjk
+  unfold rankedThreshold
+  have hpow : 2 ^ j ≤ 2 ^ k :=
+    Nat.pow_le_pow_right (by norm_num) hjk
+  have hsub : 2 ^ j - 1 ≤ 2 ^ k - 1 :=
+    Nat.sub_le_sub_right hpow 1
+  exact Nat.pow_le_pow_right (by norm_num) hsub
+
+theorem rankedScaleRadius_sum_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (N : ℕ) (t : I) :
+    (∑ j ∈ (Finset.range N).filter (fun j => j ≠ 0),
+        Real.sqrt ((2 : ℝ) ^ j) *
+          (majorizingRadius D
+            (rankedSelectedDepth a D (rankedThreshold j) t) : ℝ)) ≤
+      48 * D +
+        4800000 *
+          ∑ k ∈ Finset.range (rankedThreshold N),
+            rankedGrowthTerm a D k t := by
+  classical
+  let S := (Finset.range N).filter (fun j => j ≠ 0)
+  let depths := Finset.range (rankedThreshold N)
+  let g : ℕ → ℕ := fun j =>
+    rankedSelectedDepth a D (rankedThreshold j) t
+  let w : ℕ → ℝ := fun j => Real.sqrt ((2 : ℝ) ^ j)
+  have hmap : ∀ j ∈ S, g j ∈ depths := by
+    intro j hj
+    have hjN : j < N :=
+      Finset.mem_range.mp (Finset.mem_filter.mp hj).1
+    have hjpos : 0 < rankedThreshold j := rankedThreshold_pos j
+    have hglt : g j < rankedThreshold j := by
+      exact rankedSelectedDepth_lt_budget a D hjpos t
+    have hthreshold :
+        rankedThreshold j ≤ rankedThreshold N :=
+      rankedThreshold_mono (Nat.le_of_lt hjN)
+    exact Finset.mem_range.mpr (hglt.trans_le hthreshold)
+  have hfiber :
+      (∑ n ∈ depths,
+          ∑ j ∈ S with g j = n,
+            w j * (majorizingRadius D (g j) : ℝ)) =
+        ∑ j ∈ S,
+          w j * (majorizingRadius D (g j) : ℝ) := by
+    exact Finset.sum_fiberwise_of_maps_to hmap
+      (fun j => w j * (majorizingRadius D (g j) : ℝ))
+  change (∑ j ∈ S,
+      w j * (majorizingRadius D (g j) : ℝ)) ≤ _
+  rw [← hfiber]
+  calc
+    (∑ n ∈ depths,
+        ∑ j ∈ S with g j = n,
+          w j * (majorizingRadius D (g j) : ℝ)) =
+        ∑ n ∈ depths,
+          (majorizingRadius D n : ℝ) *
+            ∑ j ∈ rankedScaleFiber a D N t n, w j := by
+      apply Finset.sum_congr rfl
+      intro n hn
+      have hset :
+          S.filter (fun j => g j = n) =
+            rankedScaleFiber a D N t n := by
+        ext j
+        simp only [S, g, rankedScaleFiber, Finset.mem_filter,
+          Finset.mem_range]
+        tauto
+      rw [hset, Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro j hj
+      have hjdepth :
+          g j = n :=
+        (Finset.mem_filter.mp hj).2.2
+      rw [hjdepth]
+      ring
+    _ ≤ ∑ n ∈ depths,
+          (majorizingRadius D n : ℝ) *
+            (12 * Real.sqrt
+              (Real.log (rankedCode a D (n + 1) t : ℝ))) := by
+      apply Finset.sum_le_sum
+      intro n hn
+      exact mul_le_mul_of_nonneg_left
+        (rankedScaleFiber_weight_le a D N t n)
+        (majorizingRadius D n).property
+    _ = 12 * ∑ n ∈ Finset.range (rankedThreshold N),
+          (majorizingRadius D n : ℝ) *
+            Real.sqrt
+              (Real.log (rankedCode a D (n + 1) t : ℝ)) := by
+      rw [Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro n hn
+      ring
+    _ ≤ 12 * (4 * D +
+        400000 *
+          ∑ k ∈ Finset.range (rankedThreshold N),
+            rankedGrowthTerm a D k t) := by
+      gcongr
+      exact majorizingRadius_sqrt_log_code_sum_le
+        a D (rankedThreshold N) t
+    _ = 48 * D +
+        4800000 *
+          ∑ k ∈ Finset.range (rankedThreshold N),
+            rankedGrowthTerm a D k t := by ring
+
+/-! ## Real cost of the ranked admissible chain -/
+
+/-- Diameter of the finite Euclidean configuration, as a nonnegative real. -/
+noncomputable def rankedDiameter
+    (a : I → EuclideanSpace ℝ J) : ℝ≥0 :=
+  ⟨finiteDistanceDiameter (fun s t => dist (a s) (a t)),
+    finiteDistanceDiameter_nonneg _ (fun s t => dist_nonneg)⟩
+
+theorem dist_le_rankedDiameter
+    (a : I → EuclideanSpace ℝ J) (s t : I) :
+    dist (a s) (a t) ≤ (rankedDiameter a : ℝ) :=
+  distance_le_finiteDistanceDiameter
+    (fun s t => dist (a s) (a t)) s t
+
+theorem dist_selectedRepresentative_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (hD : ∀ s t, dist (a s) (a t) ≤ (D : ℝ))
+    (n : ℕ) (t : I) :
+    dist (a t) (a (rankedRepresentative a D n t)) ≤
+      2 * (majorizingRadius D n : ℝ) := by
+  cases n with
+  | zero =>
+      have h := hD t (rankedRepresentative a D 0 t)
+      have hD0 : 0 ≤ (D : ℝ) := D.property
+      simpa using h.trans (by nlinarith)
+  | succ n =>
+      exact rankedCell_pair_dist_le a D n t
+        (mem_rankedCell a D (n + 1) t)
+        (rankedRepresentative_mem a D (n + 1) t)
+
+theorem finiteSetDistance_rankedLevel_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (hD : ∀ s t, dist (a s) (a t) ≤ (D : ℝ))
+    (anchor : I) {j : ℕ} (hj : j ≠ 0) (t : I) :
+    finiteSetDistance (fun s t => dist (a s) (a t))
+        (rankedAdmissibleLevel a D anchor j)
+        (rankedAdmissibleLevel_nonempty a D anchor j) t ≤
+      2 * (majorizingRadius D
+        (rankedSelectedDepth a D (rankedThreshold j) t) : ℝ) := by
+  let n := rankedSelectedDepth a D (rankedThreshold j) t
+  let u := rankedRepresentative a D n t
+  calc
+    finiteSetDistance (fun s t => dist (a s) (a t))
+        (rankedAdmissibleLevel a D anchor j)
+        (rankedAdmissibleLevel_nonempty a D anchor j) t ≤
+        dist (a t) (a u) := by
+      exact Finset.inf'_le _ 
+        (rankedSelectedRepresentative_mem_level
+          a D anchor hj t)
+    _ ≤ 2 * (majorizingRadius D n : ℝ) :=
+      dist_selectedRepresentative_le a D hD n t
+
+theorem finiteSetDistance_univ_eq_zero
+    (a : I → EuclideanSpace ℝ J) (t : I) :
+    finiteSetDistance (fun s t => dist (a s) (a t))
+        (Finset.univ : Finset I) Finset.univ_nonempty t = 0 := by
+  apply le_antisymm
+  · exact (Finset.inf'_le _ (Finset.mem_univ t)).trans_eq
+      (dist_self (a t))
+  · exact finiteSetDistance_nonneg _ (fun s t => dist_nonneg)
+      Finset.univ_nonempty t
+
+set_option maxHeartbeats 800000 in
+theorem realChainPointCost_ranked_le
+    (a : I → EuclideanSpace ℝ J) (D : ℝ≥0)
+    (hD : ∀ s t, dist (a s) (a t) ≤ (D : ℝ))
+    (anchor t : I) :
+    realChainPointCost (fun s t => dist (a s) (a t))
+        (rankedFiniteAdmissibleChain a D anchor) t ≤
+      98 * D +
+        11520000000 * rankedWidth a D 0 t := by
+  classical
+  let N := Fintype.card I
+  let A := rankedFiniteAdmissibleChain a D anchor
+  let d : I → I → ℝ := fun s t => dist (a s) (a t)
+  have hN0 : 0 < N := Fintype.card_pos
+  have hterminal : A.terminal = N := rfl
+  change (∑ k : Fin (N + 1),
+      realGammaTwoWeight (k : ℕ) *
+        finiteSetDistance d (A.level k)
+          (A.level_nonempty k) t) ≤ _
+  rw [Fin.sum_univ_castSucc]
+  have hlast :
+      realGammaTwoWeight N *
+        finiteSetDistance d
+          (A.level (Fin.last N))
+          (A.level_nonempty (Fin.last N)) t = 0 := by
+    have hlevel :
+        A.level (Fin.last N) = (Finset.univ : Finset I) := by
+      exact A.level_terminal
+    have hzero := finiteSetDistance_univ_eq_zero a t
+    have hdist :
+        finiteSetDistance d
+          (A.level (Fin.last N))
+          (A.level_nonempty (Fin.last N)) t = 0 := by
+      simpa only [hlevel, d] using hzero
+    rw [hdist, mul_zero]
+  have hlast' :
+      realGammaTwoWeight ((Fin.last N : Fin (N + 1)) : ℕ) *
+        finiteSetDistance d
+          (A.level (Fin.last N))
+          (A.level_nonempty (Fin.last N)) t = 0 := by
+    simpa using hlast
+  rw [hlast', add_zero]
+  have hfin :
+      (∑ k : Fin N,
+          realGammaTwoWeight (k : ℕ) *
+            finiteSetDistance d
+              (A.level k.castSucc)
+              (A.level_nonempty k.castSucc) t) ≤
+        ∑ k : Fin N,
+          if (k : ℕ) = 0 then (2 * D : ℝ)
+          else 2 * Real.sqrt ((2 : ℝ) ^ (k : ℕ)) *
+            (majorizingRadius D
+              (rankedSelectedDepth a D
+                (rankedThreshold (k : ℕ)) t) : ℝ) := by
+    apply Finset.sum_le_sum
+    intro k hk
+    have hkN : (k : ℕ) ≠ N := by omega
+    have hlevel :
+        A.level k.castSucc =
+          rankedAdmissibleLevel a D anchor (k : ℕ) := by
+      change (if (k : ℕ) = N then (Finset.univ : Finset I)
+        else rankedAdmissibleLevel a D anchor (k : ℕ)) =
+          rankedAdmissibleLevel a D anchor (k : ℕ)
+      simp [hkN]
+    by_cases hk0 : (k : ℕ) = 0
+    · simp only [if_pos hk0]
+      have hw : realGammaTwoWeight (k : ℕ) = 1 := by
+        rw [hk0]
+        exact realGammaTwoWeight_zero
+      rw [hw, one_mul]
+      have hdist :
+          finiteSetDistance d
+              (A.level k.castSucc)
+              (A.level_nonempty k.castSucc) t ≤
+            dist (a t) (a anchor) := by
+        exact Finset.inf'_le _ (by
+          simpa only [hlevel, hk0,
+            rankedAdmissibleLevel_zero] using
+              (show anchor ∈ ({anchor} : Finset I) by simp))
+      have hdiam := hD t anchor
+      change finiteSetDistance d
+          (A.level k.castSucc) _ t ≤ 2 * (D : ℝ)
+      exact hdist.trans (hdiam.trans (by
+        calc
+          (D : ℝ) = 1 * (D : ℝ) := by ring
+          _ ≤ 2 * (D : ℝ) :=
+            mul_le_mul_of_nonneg_right (by norm_num) D.property))
+    · simp only [if_neg hk0]
+      have hdist :
+          finiteSetDistance d
+              (A.level k.castSucc)
+              (A.level_nonempty k.castSucc) t ≤
+            2 * (majorizingRadius D
+              (rankedSelectedDepth a D
+                (rankedThreshold (k : ℕ)) t) : ℝ) := by
+        simpa only [hlevel] using
+          finiteSetDistance_rankedLevel_le
+            a D hD anchor hk0 t
+      change realGammaTwoWeight (k : ℕ) *
+          finiteSetDistance d
+            (A.level k.castSucc) _ t ≤
+        2 * Real.sqrt ((2 : ℝ) ^ (k : ℕ)) *
+          (majorizingRadius D
+            (rankedSelectedDepth a D
+              (rankedThreshold (k : ℕ)) t) : ℝ)
+      have hw :
+          realGammaTwoWeight (k : ℕ) =
+            Real.sqrt ((2 : ℝ) ^ (k : ℕ)) := rfl
+      rw [hw]
+      calc
+        Real.sqrt ((2 : ℝ) ^ (k : ℕ)) *
+            finiteSetDistance d
+              (A.level k.castSucc) _ t ≤
+            Real.sqrt ((2 : ℝ) ^ (k : ℕ)) *
+              (2 * (majorizingRadius D
+                (rankedSelectedDepth a D
+                  (rankedThreshold (k : ℕ)) t) : ℝ)) :=
+          mul_le_mul_of_nonneg_left hdist (Real.sqrt_nonneg _)
+        _ = 2 * Real.sqrt ((2 : ℝ) ^ (k : ℕ)) *
+            (majorizingRadius D
+              (rankedSelectedDepth a D
+                (rankedThreshold (k : ℕ)) t) : ℝ) := by ring
+  have hfinRange :
+      (∑ k : Fin N,
+          realGammaTwoWeight (k : ℕ) *
+            finiteSetDistance d
+              (A.level k.castSucc)
+              (A.level_nonempty k.castSucc) t) ≤
+        ∑ j ∈ Finset.range N,
+          if j = 0 then (2 * D : ℝ)
+          else 2 * Real.sqrt ((2 : ℝ) ^ j) *
+            (majorizingRadius D
+              (rankedSelectedDepth a D (rankedThreshold j) t) : ℝ) := by
+    calc
+      _ ≤ ∑ k : Fin N,
+          if (k : ℕ) = 0 then (2 * D : ℝ)
+          else 2 * Real.sqrt ((2 : ℝ) ^ (k : ℕ)) *
+            (majorizingRadius D
+              (rankedSelectedDepth a D
+                (rankedThreshold (k : ℕ)) t) : ℝ) := hfin
+      _ = _ := Fin.sum_univ_eq_sum_range
+        (fun j =>
+          if j = 0 then (2 * D : ℝ)
+          else 2 * Real.sqrt ((2 : ℝ) ^ j) *
+            (majorizingRadius D
+              (rankedSelectedDepth a D
+                (rankedThreshold j) t) : ℝ)) N
+  refine hfinRange.trans ?_
+  have hsumSplit :
+      (∑ j ∈ Finset.range N,
+          if j = 0 then (2 * D : ℝ)
+          else 2 * Real.sqrt ((2 : ℝ) ^ j) *
+            (majorizingRadius D
+              (rankedSelectedDepth a D (rankedThreshold j) t) : ℝ)) =
+        2 * D +
+          2 * ∑ j ∈ (Finset.range N).filter (fun j => j ≠ 0),
+            Real.sqrt ((2 : ℝ) ^ j) *
+              (majorizingRadius D
+                (rankedSelectedDepth a D
+                  (rankedThreshold j) t) : ℝ) := by
+    let f : ℕ → ℝ := fun j =>
+      if j = 0 then (2 * D : ℝ)
+      else 2 * Real.sqrt ((2 : ℝ) ^ j) *
+        (majorizingRadius D
+          (rankedSelectedDepth a D (rankedThreshold j) t) : ℝ)
+    calc
+      ∑ j ∈ Finset.range N, f j =
+          (∑ j ∈ (Finset.range N).filter (fun j => j = 0), f j) +
+          ∑ j ∈ (Finset.range N).filter (fun j => ¬ j = 0), f j := by
+        symm
+        exact Finset.sum_filter_add_sum_filter_not
+          (Finset.range N) (fun j => j = 0) f
+      _ = 2 * D +
+          ∑ j ∈ (Finset.range N).filter (fun j => j ≠ 0),
+            2 * Real.sqrt ((2 : ℝ) ^ j) *
+              (majorizingRadius D
+                (rankedSelectedDepth a D
+                  (rankedThreshold j) t) : ℝ) := by
+        congr 1
+        · simp [f, hN0]
+        · apply Finset.sum_congr rfl
+          intro j hj
+          simp only [f, if_neg (Finset.mem_filter.mp hj).2]
+      _ = 2 * D +
+          2 * ∑ j ∈ (Finset.range N).filter (fun j => j ≠ 0),
+            Real.sqrt ((2 : ℝ) ^ j) *
+              (majorizingRadius D
+                (rankedSelectedDepth a D
+                  (rankedThreshold j) t) : ℝ) := by
+        rw [Finset.mul_sum]
+        apply congrArg (fun x : ℝ => 2 * D + x)
+        apply Finset.sum_congr rfl
+        intro j hj
+        ring
+  rw [hsumSplit]
+  have hscale := rankedScaleRadius_sum_le a D N t
+  have hgrowth := rankedGrowth_sum_le a D
+    (rankedThreshold N) t
+  calc
+    2 * D +
+        2 * ∑ j ∈ (Finset.range N).filter (fun j => j ≠ 0),
+          Real.sqrt ((2 : ℝ) ^ j) *
+            (majorizingRadius D
+              (rankedSelectedDepth a D
+                (rankedThreshold j) t) : ℝ) ≤
+        2 * D + 2 * (48 * D +
+          4800000 *
+            ∑ k ∈ Finset.range (rankedThreshold N),
+              rankedGrowthTerm a D k t) := by
+      gcongr
+    _ = 98 * D +
+        9600000 *
+          ∑ k ∈ Finset.range (rankedThreshold N),
+            rankedGrowthTerm a D k t := by ring
+    _ ≤ 98 * D +
+        9600000 * (1200 * rankedWidth a D 0 t) := by
+      gcongr
+    _ ≤ 98 * D +
+        11520000000 * rankedWidth a D 0 t := by
+      ring_nf
+      exact le_rfl
+
+/-! ## Diameter absorption and the Euclidean lower theorem -/
+
+/-- The expected canonical maximum controls the diameter of a finite
+Euclidean configuration.  The deliberately generous constant comes from the
+public two-point Sudakov estimate. -/
+theorem rankedDiameter_le_width
+    (a : I → EuclideanSpace ℝ J) :
+    (rankedDiameter a : ℝ) ≤
+      800 * localGaussianWidth a (Finset.univ : Finset I)
+        Finset.univ_nonempty := by
+  classical
+  let D := rankedDiameter a
+  by_cases hD0 : D = 0
+  · have hw := localGaussianWidth_nonneg a
+      (Finset.univ : Finset I) Finset.univ_nonempty
+    simpa [D, hD0] using
+      (mul_nonneg (show (0 : ℝ) ≤ 800 by norm_num) hw)
+  · have hDpos : 0 < D := bot_lt_iff_ne_bot.mpr hD0
+    obtain ⟨p, hp, hpmax⟩ :=
+      Finset.exists_mem_eq_sup'
+        (Finset.univ_nonempty.product
+          Finset.univ_nonempty :
+            ((Finset.univ : Finset I).product Finset.univ).Nonempty)
+        (fun q : I × I => dist (a q.1) (a q.2))
+    have hpdiam :
+        dist (a p.1) (a p.2) = (D : ℝ) := by
+      change dist (a p.1) (a p.2) =
+        finiteDistanceDiameter
+          (fun s t => dist (a s) (a t))
+      exact hpmax.symm
+    let c : Fin 2 → I :=
+      fun i => if i = 0 then p.1 else p.2
+    let ε : ℝ≥0 := D / 2
+    have hε : 0 < ε := by
+      dsimp [ε]
+      positivity
+    have hsep : ∀ i j, i ≠ j →
+        (ε : ℝ) < dist (a (c i)) (a (c j)) := by
+      intro i j hij
+      fin_cases i <;> fin_cases j <;>
+        simp_all [c, ε, hpdiam, dist_comm]
+    have hsud := separatedCanonicalGaussian_lower
+      (k := 0) a c ε hε hsep
+    have hpair :
+        (∫ g, Finset.univ.sup' Finset.univ_nonempty
+            (fun i : Fin 2 => inner ℝ (a (c i)) g)
+            ∂stdGaussian (EuclideanSpace ℝ J)) ≤
+          localGaussianWidth a (Finset.univ : Finset I)
+            Finset.univ_nonempty := by
+      unfold localGaussianWidth
+      apply integral_mono
+        (by
+          have heq :
+              (fun g : EuclideanSpace ℝ J =>
+                Finset.univ.sup' Finset.univ_nonempty
+                  (fun i : Fin 2 => inner ℝ (a (c i)) g)) =
+                localGaussianMaximum
+                  (fun i : Fin 2 => a (c i))
+                  (Finset.univ : Finset (Fin 2))
+                  Finset.univ_nonempty := by
+            funext g
+            exact (Finset.sup'_apply Finset.univ_nonempty
+              (fun i : Fin 2 =>
+                fun x : EuclideanSpace ℝ J =>
+                  inner ℝ (a (c i)) x) g).symm
+          rw [heq]
+          exact integrable_localGaussianMaximum
+            (fun i : Fin 2 => a (c i))
+            (Finset.univ : Finset (Fin 2))
+            Finset.univ_nonempty)
+        (integrable_localGaussianMaximum a
+          (Finset.univ : Finset I) Finset.univ_nonempty)
+      intro g
+      unfold localGaussianMaximum
+      simp only [Finset.sup'_apply]
+      apply Finset.sup'_le
+      intro i hi
+      exact Finset.le_sup'
+        (fun t : I => inner ℝ (a t) g)
+        (Finset.mem_univ (c i))
+    have hmain :
+        (1 / 200 : ℝ) * (ε : ℝ) *
+            Real.sqrt (Real.log 2) ≤
+          localGaussianWidth a (Finset.univ : Finset I)
+            Finset.univ_nonempty := by
+      simpa using hsud.trans hpair
+    have hsqrt :
+        (1 / 2 : ℝ) ≤ Real.sqrt (Real.log 2) := by
+      have hsqrt' :
+          (1 / 2 : ℝ) < Real.sqrt (Real.log 2) := by
+        rw [lt_sqrt (by norm_num)]
+        nlinarith [Real.log_two_gt_d9]
+      exact hsqrt'.le
+    have hscaled :
+        (D : ℝ) / 800 ≤
+          localGaussianWidth a (Finset.univ : Finset I)
+            Finset.univ_nonempty := by
+      calc
+        (D : ℝ) / 800 =
+            (1 / 200 : ℝ) * ((D : ℝ) / 2) * (1 / 2) := by
+          ring
+        _ ≤ (1 / 200 : ℝ) * ((D : ℝ) / 2) *
+            Real.sqrt (Real.log 2) := by
+          gcongr
+        _ ≤ localGaussianWidth a (Finset.univ : Finset I)
+            Finset.univ_nonempty := by
+          simpa [ε] using hmain
+    calc
+      (rankedDiameter a : ℝ) = 800 * ((D : ℝ) / 800) := by
+        ring
+      _ ≤ 800 * localGaussianWidth a (Finset.univ : Finset I)
+          Finset.univ_nonempty :=
+        mul_le_mul_of_nonneg_left hscaled (by norm_num)
+
+/-- The ranked chain has total real cost controlled by the canonical Gaussian
+width. -/
+theorem realChainCost_ranked_width_le
+    (a : I → EuclideanSpace ℝ J) (anchor : I) :
+    realChainCost (fun s t => dist (a s) (a t))
+        (rankedFiniteAdmissibleChain a (rankedDiameter a) anchor) ≤
+      11520078400 *
+        localGaussianWidth a (Finset.univ : Finset I)
+          Finset.univ_nonempty := by
+  classical
+  unfold realChainCost
+  apply Finset.sup'_le
+  intro t ht
+  have hpoint := realChainPointCost_ranked_le
+    a (rankedDiameter a) (dist_le_rankedDiameter a) anchor t
+  have hwidth :
+      rankedWidth a (rankedDiameter a) 0 t =
+        localGaussianWidth a (Finset.univ : Finset I)
+          Finset.univ_nonempty := by
+    rfl
+  rw [hwidth] at hpoint
+  have hdiam := rankedDiameter_le_width a
+  calc
+    realChainPointCost (fun s t => dist (a s) (a t))
+        (rankedFiniteAdmissibleChain a (rankedDiameter a) anchor) t ≤
+      98 * (rankedDiameter a : ℝ) +
+        11520000000 *
+          localGaussianWidth a (Finset.univ : Finset I)
+            Finset.univ_nonempty := hpoint
+    _ ≤ 98 * (800 *
+          localGaussianWidth a (Finset.univ : Finset I)
+            Finset.univ_nonempty) +
+        11520000000 *
+          localGaussianWidth a (Finset.univ : Finset I)
+            Finset.univ_nonempty := by
+      gcongr
+    _ = 11520078400 *
+        localGaussianWidth a (Finset.univ : Finset I)
+          Finset.univ_nonempty := by ring
+
+/-- Finite Euclidean form of the lower majorizing-measure theorem. -/
+theorem gamma2_euclidean_le_width
+    (a : I → EuclideanSpace ℝ J) (anchor : I) :
+    (HDP.gamma2
+      (fun s t => ENNReal.ofReal (dist (a s) (a t)))).toReal ≤
+      11520078400 *
+        localGaussianWidth a (Finset.univ : Finset I)
+          Finset.univ_nonempty := by
+  let d : I → I → ℝ := fun s t => dist (a s) (a t)
+  let A := rankedFiniteAdmissibleChain a (rankedDiameter a) anchor
+  have hd : ∀ s t, 0 ≤ d s t := fun s t => dist_nonneg
+  have hγ := HDP.gamma2_le_chainCost
+    (fun s t => ENNReal.ofReal (d s t)) A
+  have hcostTop := chainCost_ofReal_ne_top d hd A
+  have hreal := ENNReal.toReal_mono hcostTop hγ
+  rw [chainCost_toReal_ofReal d hd A] at hreal
+  exact hreal.trans (by
+    simpa only [d, A] using
+      realChainCost_ranked_width_le a anchor)
+
+end
+
+end HDP.Chapter8.Appendix
